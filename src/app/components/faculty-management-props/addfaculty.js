@@ -26,11 +26,12 @@ export function AddFaculty({ open, onClose, onSuccess }) {
     department: '',
     designation: '',
     role: '',
+    category: '',
     ext_no: '',
     research_interest: '',
     academic_responsibility: '',
     is_retired: '0',
-    retirement_date: null
+    retirement_date: null   
   })
   const [toast, setToast] = useState({
     open: false,
@@ -84,6 +85,7 @@ export function AddFaculty({ open, onClose, onSuccess }) {
         department: '',
         designation: '',
         role: '',
+        category: '',
         ext_no: '',
         research_interest: '',
         is_retired: false,
@@ -234,6 +236,22 @@ export function AddFaculty({ open, onClose, onSuccess }) {
                   ))}
                 </TextField>
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Category"
+                  required
+                  value={formData.category}
+                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                  variant="outlined"
+                >
+                  <MenuItem value="GEN">General</MenuItem>
+                  <MenuItem value="OBC">OBC</MenuItem>
+                  <MenuItem value="SC">SC</MenuItem>
+                  <MenuItem value="ST">ST</MenuItem>
+                </TextField>
+              </Grid>
               
               <Grid item xs={12}>
                 <TextField
@@ -276,7 +294,14 @@ export function AddFaculty({ open, onClose, onSuccess }) {
                   required
                   label="Is Retired"
                   value={formData.is_retired}
-                  onChange={(e) => setFormData(prev => ({ ...prev, is_retired: e.target.value }))}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setFormData(prev => ({
+                      ...prev,
+                      is_retired: val,
+                      retirement_date: val === '1' && !prev.retirement_date ? new Date().toISOString().slice(0,10) : prev.retirement_date
+                    }))
+                  }}
                   variant="outlined"
                 >
                   <MenuItem value="0">Active</MenuItem>

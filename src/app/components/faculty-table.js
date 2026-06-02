@@ -33,6 +33,7 @@ const columns = [
   { id: 'designation', label: 'Designation', minWidth: 170 },
   { id: 'academic_responsibility', label: 'Academic Responsibility', minWidth: 180 },
   { id: 'role', label: 'Role', minWidth: 150 },
+  { id: 'status', label: 'Status', minWidth: 120 },
   { id: 'actions', label: 'Actions', minWidth: 120 },
 ]
 
@@ -138,6 +139,18 @@ export function FacultyTable() {
     setPage(0)
   }, [nameSearch, emailSearch])
 
+  const formatDate = (dateValue) => {
+    if (!dateValue) return ''
+    try {
+      const d = new Date(dateValue)
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10)
+    } catch (e) {
+      // fallthrough to fallback
+    }
+    if (typeof dateValue === 'string' && dateValue.includes('T')) return dateValue.split('T')[0]
+    return String(dateValue)
+  }
+
 
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden', p: 3 }}>
@@ -229,6 +242,18 @@ export function FacultyTable() {
                   <TableCell>{row.designation || 'N/A'}</TableCell>
                   <TableCell>{row.academic_responsibility || 'N/A'}</TableCell>
                   <TableCell>{row.role}</TableCell>
+                  <TableCell>
+                    {row.is_retired ? (
+                      <span className="text-red-600  font-semibold">
+                        Retired<br />
+                        <span>{formatDate(row.retirement_date)}</span>
+                      </span>
+                    ) : (
+                      <span className="text-green-500  rounded-full font-semibold">
+                        Active
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <IconButton 
                       onClick={() => handleEdit(row)}

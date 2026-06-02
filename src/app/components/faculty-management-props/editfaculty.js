@@ -35,6 +35,7 @@ export function EditFaculty({ open, faculty, onClose, onSuccess, onDelete }) {
     department: "",
     designation: "",
     role: "",
+    category: "",
     ext_no: "",
     research_interest: "",
     academic_responsibility: "",
@@ -74,11 +75,17 @@ export function EditFaculty({ open, faculty, onClose, onSuccess, onDelete }) {
         department: faculty.profile.department || "",
         designation: faculty.profile.designation || "",
         role: faculty.profile.role || "",
+        category: faculty.profile.category || "",
         ext_no: faculty.profile.ext_no || "",
         research_interest: faculty.profile.research_interest || "",
         academic_responsibility: faculty.profile.academic_responsibility || "",
         is_retired: faculty.profile.is_retired ? "1" : "0",
-        retirement_date: faculty.profile.retirement_date || null,
+        retirement_date: (function(rd) {
+          if (!rd) return null;
+          if (typeof rd === 'number') return new Date(rd).toISOString().slice(0,10);
+          if (typeof rd === 'string' && rd.includes('T')) return rd.split('T')[0];
+          return rd;
+        })(faculty.profile.retirement_date),
       });
     }
   }, [faculty]);
@@ -119,7 +126,7 @@ export function EditFaculty({ open, faculty, onClose, onSuccess, onDelete }) {
       });
 
       if (onSuccess) {
-        onSuccess(formattedData);
+        onSuccess(result);
       }
     } catch (error) {
       console.error("Update error:", error);
@@ -316,6 +323,25 @@ export function EditFaculty({ open, faculty, onClose, onSuccess, onDelete }) {
                   </TextField>
                 </Grid>
 
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    select
+                    label="Category"
+                    required
+                    value={formData.category}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, category: e.target.value }))
+                    }
+                    variant="outlined"
+                  >
+                    <MenuItem value="GEN">General</MenuItem>
+                    <MenuItem value="OBC">OBC</MenuItem>
+                    <MenuItem value="SC">SC</MenuItem>
+                    <MenuItem value="ST">ST</MenuItem>
+                  </TextField>
+                </Grid>
+
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
@@ -369,12 +395,17 @@ export function EditFaculty({ open, faculty, onClose, onSuccess, onDelete }) {
                     required
                     label="Is Retired"
                     value={formData.is_retired}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const val = e.target.value;
                       setFormData((prev) => ({
                         ...prev,
-                        is_retired: e.target.value,
-                      }))
-                    }
+                        is_retired: val,
+                        retirement_date:
+                          val === "1" && !prev.retirement_date
+                            ? new Date().toISOString().slice(0, 10)
+                            : prev.retirement_date,
+                      }));
+                    }}
                     variant="outlined"
                   >
                     <MenuItem value="0">Active</MenuItem>
@@ -387,7 +418,7 @@ export function EditFaculty({ open, faculty, onClose, onSuccess, onDelete }) {
                       fullWidth
                       type="date"
                       label="Retirement Date"
-                      value={formData.retirement_date || "2025-02-27"}
+                      value={formData.retirement_date || ""}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,

@@ -72,7 +72,7 @@ export async function getCachedUserProfile(email) {
 export async function invalidateUserProfile(email) {
   if (isRedisDisabled()) return false;
   try {
-    const redis = connectRedis();
+    const redis = await connectRedis('profileCache:invalidateUserProfile');
     if (!redis) return false;
     const key = getCacheKey(email);
     
@@ -88,6 +88,7 @@ export async function invalidateUserProfile(email) {
 export async function invalidateProfileIfNeeded(type, params) {
   // Tables that are part of the profile data
   const profileTables = [
+    'user',
     'profile',
     'about_me',
     'education',
