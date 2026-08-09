@@ -20,6 +20,35 @@ export const notice_sub_types = {
   ]
 }
 
+export const StaffDesignations = [
+  "Technical Assistant",
+  "Technical Assistant (SG-I)",
+  "Technical Assistant (SG-II)",
+  "Sr Technical Assistant",
+  "Technician",
+  "Technician (SG-I)",
+  "Technician (SG-II)",
+  "Sr Technician",
+  "Assistant Technician",
+  "Jr Engineer",
+  "Assistant Engineer",
+  "Assistant Engineer (SG-I)",
+  "Assistant Engineer (SG-II)",
+  "Office Attendant",
+  "Office Attendant (SG-I)",
+  "Office Attendant (SG-II)",
+  "Sr Office Attendant",
+  "Jr Office Attendant",
+  "Superintendent",
+  "Superintendent (SG-I)",
+  "Superintendent (SG-II)",
+  "Sr Superintendent",
+  "Assistant (SG-I)",
+  "Senior Assistant",
+  "Junior Assistant",
+];
+
+
 export const depList = new Map([
   ['arch', 'Architecture'],
   ['che', 'Chemical Science and Technology'],

@@ -16,7 +16,7 @@ import {
 import { Delete } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { StaffdepList, officerDesignations } from "@/lib/const";
+import { StaffdepList, officerDesignations,StaffDesignations } from "@/lib/const";
 import Toast from "../common/Toast";
 
 const emptyForm = {
@@ -31,14 +31,17 @@ const emptyForm = {
   // staff table
   employee_code: "",
   date_of_joining: "",
-  date_of_birth : "",
+  date_of_birth: "",
   cadre: "",
   department: "",
   designation: "",
-  pay_level : "",
+  pay_level: "",
 };
 
-const PAY_LEVEL_OPTIONS = Array.from({ length: 14 }, (_, i) => `Level-${i + 1}`)
+const PAY_LEVEL_OPTIONS = Array.from(
+  { length: 14 },
+  (_, i) => `Level-${i + 1}`,
+);
 
 //faculty = staff
 export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
@@ -50,7 +53,8 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
     message: "",
   });
   const [formData, setFormData] = useState(emptyForm);
-  const [dynamicDesignations, setDynamicDesignations] = useState(officerDesignations);
+  const [dynamicDesignations, setDynamicDesignations] =
+    useState(officerDesignations);
 
   useEffect(() => {
     const fetchDesignations = async () => {
@@ -91,12 +95,14 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
       cv: faculty.cv || "",
 
       employee_code: faculty.employee_code || "",
-      date_of_joining: (faculty.date_of_joining || "").toString().split("T")[0] || "",
-      date_of_birth: (faculty.date_of_birth || "").toString().split("T")[0] || "",
+      date_of_joining:
+        (faculty.date_of_joining || "").toString().split("T")[0] || "",
+      date_of_birth:
+        (faculty.date_of_birth || "").toString().split("T")[0] || "",
       cadre: faculty.cadre || "",
       department: faculty.department || "",
       designation: faculty.designation || "",
-      pay_level : faculty.pay_level || "",
+      pay_level: faculty.pay_level || "",
     });
   }, [faculty]);
 
@@ -113,11 +119,11 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
           name: formData.name,
           employee_code: formData.employee_code,
           date_of_joining: formData.date_of_joining,
-          date_of_birth : formData.date_of_birth || null,
+          date_of_birth: formData.date_of_birth || null,
           cadre: formData.cadre,
           department: formData.department,
           designation: formData.designation,
-          pay_level : formData.pay_level,
+          pay_level: formData.pay_level,
           gender: formData.gender || null,
           category: formData.category || null,
           image: formData.image,
@@ -200,7 +206,10 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
             }}
           >
             <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" sx={{ mb: 2, color: "#333", fontWeight: 500 }}>
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, color: "#333", fontWeight: 500 }}
+              >
                 Staff Information
               </Typography>
 
@@ -239,7 +248,10 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
                     required
                     value={formData.employee_code}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, employee_code: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        employee_code: e.target.value,
+                      }))
                     }
                     variant="outlined"
                   />
@@ -251,7 +263,10 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
                     label="Date of Joining"
                     value={formData.date_of_joining}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, date_of_joining: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        date_of_joining: e.target.value,
+                      }))
                     }
                     InputLabelProps={{ shrink: true }}
                     variant="outlined"
@@ -265,7 +280,10 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
                     label="Date of Birth"
                     value={formData.date_of_birth}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, date_of_birth: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        date_of_birth: e.target.value,
+                      }))
                     }
                     InputLabelProps={{ shrink: true }}
                     variant="outlined"
@@ -280,7 +298,10 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
                     required
                     value={formData.department}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, department: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        department: e.target.value,
+                      }))
                     }
                     variant="outlined"
                   >
@@ -301,7 +322,10 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
                       required
                       value={formData.designation}
                       onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, designation: e.target.value }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          designation: e.target.value,
+                        }))
                       }
                       variant="outlined"
                     >
@@ -318,35 +342,18 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
                       label="Designation"
                       value={formData.designation || ""}
                       onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, designation: e.target.value }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          designation: e.target.value,
+                        }))
                       }
                       variant="outlined"
                     >
-                        <MenuItem value="Technical Assistant">Technical Assistant</MenuItem>
-                        <MenuItem value="Technical Assistant (SG-I)">Technical Assistant (SG-I)</MenuItem>
-                        <MenuItem value="Technical Assistant (SG-II)">Technical Assistant (SG-II)</MenuItem>
-                        <MenuItem value="Sr Technical Assistant">Sr Technical Assistant</MenuItem>
-                        <MenuItem value="Technician">Technician</MenuItem>
-                        <MenuItem value="Technician (SG-I)">Technician (SG-I)</MenuItem>
-                        <MenuItem value="Technician (SG-II)">Technician (SG-II)</MenuItem>
-                        <MenuItem value="Sr Technician">Sr Technician</MenuItem>
-                        <MenuItem value="Assistant Technician">Assistant Technician</MenuItem>
-                        <MenuItem value="Jr Engineer">Jr Engineer</MenuItem>
-                        <MenuItem value="Assistant Engineer">Assistant Engineer</MenuItem>
-                        <MenuItem value="Assistant Engineer (SG-I)">Assistant Engineer (SG-I)</MenuItem>
-                        <MenuItem value="Assistant Engineer (SG-II)">Assistant Engineer (SG-II)</MenuItem>
-                        <MenuItem value="Office Attendant">Office Attendant</MenuItem>
-                        <MenuItem value="Office Attendant (SG-I)">Office Attendant (SG-I)</MenuItem>
-                        <MenuItem value="Office Attendant (SG-II)">Office Attendant (SG-II)</MenuItem>
-                        <MenuItem value="Sr Office Attendant">Sr Office Attendant</MenuItem>
-                        <MenuItem value="Jr Office Attendant">Jr Office Attendant</MenuItem>
-                        <MenuItem value="Superintendent">Superintendent</MenuItem>
-                        <MenuItem value="Superintendent (SG-I)">Superintendent (SG-I)</MenuItem>
-                        <MenuItem value="Superintendent (SG-II)">Superintendent (SG-II)</MenuItem>
-                        <MenuItem value="Sr Superintendent">Sr Superintendent</MenuItem>
-                        <MenuItem value="Assistant (SG-I)">Assistant (SG-I)</MenuItem>
-                        <MenuItem value="Senior Assistant">Senior Assistant</MenuItem>
-                        <MenuItem value="Junior Assistant">Junior Assistant</MenuItem>
+                      {StaffDesignations.map((designation) => (
+                        <MenuItem key={designation} value={designation}>
+                          {designation}
+                        </MenuItem>
+                      ))}
                     </TextField>
                   )}
                 </Grid>
@@ -358,15 +365,26 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
                     label="Cadre"
                     value={formData.cadre || ""}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, cadre: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        cadre: e.target.value,
+                      }))
                     }
                     variant="outlined"
                   >
-                    <MenuItem value="Technical Higher" >Technical Higher</MenuItem>
+                    <MenuItem value="Technical Higher">
+                      Technical Higher
+                    </MenuItem>
                     <MenuItem value="Technical Lower">Technical Lower</MenuItem>
-                    <MenuItem value="Supporting Staff">Supporting Staff</MenuItem>
-                    <MenuItem value="Ministerial Higher">Ministerial Higher</MenuItem>
-                    <MenuItem value="Ministerial Lower">Ministerial Lower</MenuItem>
+                    <MenuItem value="Supporting Staff">
+                      Supporting Staff
+                    </MenuItem>
+                    <MenuItem value="Ministerial Higher">
+                      Ministerial Higher
+                    </MenuItem>
+                    <MenuItem value="Ministerial Lower">
+                      Ministerial Lower
+                    </MenuItem>
                   </TextField>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -375,12 +393,19 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
                     select
                     label="Pay Level"
                     value={formData.pay_level || ""}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, pay_level: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        pay_level: e.target.value,
+                      }))
+                    }
                     variant="outlined"
                   >
                     <MenuItem value="">Not specified</MenuItem>
                     {PAY_LEVEL_OPTIONS.map((level) => (
-                      <MenuItem key={level} value={level}>{level}</MenuItem>
+                      <MenuItem key={level} value={level}>
+                        {level}
+                      </MenuItem>
                     ))}
                   </TextField>
                 </Grid>
@@ -391,7 +416,10 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
                     label="Category"
                     value={formData.category}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, category: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        category: e.target.value,
+                      }))
                     }
                     variant="outlined"
                   >
@@ -410,7 +438,10 @@ export function EditStaff({ open, faculty, onClose, onSuccess, onDelete }) {
                     label="Gender"
                     value={formData.gender}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, gender: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        gender: e.target.value,
+                      }))
                     }
                     variant="outlined"
                   >
