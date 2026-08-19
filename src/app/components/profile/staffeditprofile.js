@@ -12,6 +12,8 @@ import {
   Typography,
   Divider,
   IconButton,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 
 import { Add, Delete } from "@mui/icons-material";
@@ -37,15 +39,15 @@ const SEMESTERS = Array.from({ length: 10 }, (_, i) => String(i + 1));
 
 // batch year range dropdown - e.g. 2020, 2021 ... up to current+10
 const CURRENT_YEAR = new Date().getFullYear();
-const BATCH_YEARS = Array.from({ length: 20 }, (_, i) => String(CURRENT_YEAR - 8 + i));
-
-
-const PASSING_YEARS = Array.from(
-  { length: CURRENT_YEAR - 1960 + 1 },
-  (_, i) => String(CURRENT_YEAR - i),
+const BATCH_YEARS = Array.from({ length: 20 }, (_, i) =>
+  String(CURRENT_YEAR - 8 + i),
 );
 
-const LEVELS = ["UG", "PG", "PhD"]
+const PASSING_YEARS = Array.from({ length: CURRENT_YEAR - 1960 + 1 }, (_, i) =>
+  String(CURRENT_YEAR - i),
+);
+
+const LEVELS = ["UG", "PG", "PhD"];
 
 const parseBatch = (batchStr) => {
   const [start, end] = (batchStr || "").split("-").map((v) => v?.trim());
@@ -66,7 +68,7 @@ export const EditProfile = ({
     // user table
     name: profile?.name || "",
     email: profile?.email || "",
-    mobile_number : profile?.mobile_number || "",
+    mobile_number: profile?.mobile_number || "",
     gender: profile?.gender || "",
     category: profile?.category || "",
     research_interest: profile?.research_interest || "",
@@ -78,7 +80,7 @@ export const EditProfile = ({
     cadre: profile?.cadre || "",
     department: profile?.department || "",
     designation: profile?.designation || "",
-    pay_level : profile?.pay_level || "",
+    pay_level: profile?.pay_level || "",
 
     permanent_address: safeParse(profile?.permanent_address, {
       place: "",
@@ -94,8 +96,8 @@ export const EditProfile = ({
     // related tables (labs -> staff_id, education/work_experience -> email)
     labs: (safeParse(profile?.labs, []) || []).map((lab) => ({
       lab_name: lab?.lab_name || "",
-      course_code : lab?.course_code || "",
-      level : lab?.level || "",
+      course_code: lab?.course_code || "",
+      level: lab?.level || "",
       start_date: toDateInput(lab?.start_date),
       end_date: toDateInput(lab?.end_date),
       batch: lab?.batch || "",
@@ -139,8 +141,8 @@ export const EditProfile = ({
         ...prev.labs,
         {
           lab_name: "",
-          course_code : "",
-          level : "",
+          course_code: "",
+          level: "",
           start_date: "",
           end_date: "",
           batch: "",
@@ -169,8 +171,8 @@ export const EditProfile = ({
         part === "end"
           ? value
           : end && Number(end) > Number(newStart)
-            ? end
-            : "";
+          ? end
+          : "";
       labs[index] = {
         ...labs[index],
         batch: newStart && newEnd ? `${newStart}-${newEnd}` : newStart,
@@ -232,7 +234,9 @@ export const EditProfile = ({
       ],
     }));
   };
-
+  const hasCurrentJob = formData.work_experience.some(
+    (exp) => exp.end_date === "Present",
+  );
   const updateWorkExperience = (index, field, value) => {
     setFormData((prev) => {
       const work_experience = [...prev.work_experience];
@@ -261,6 +265,39 @@ export const EditProfile = ({
       setSubmitting(false);
       return;
     }
+    const currentJobs = formData.work_experience.filter(
+      (exp) => exp.end_date === "Present",
+    );
+
+    if (currentJobs.length > 1) {
+      setError("Only one work experience can be marked as Current Job.");
+      setSubmitting(false);
+      return;
+    }
+
+    // const invalidExperience = formData.work_experience.find(
+    //   (exp) =>
+    //     exp.work_experiences ||
+    //     exp.institute ||
+    //     exp.start_date
+    //       ? !exp.end_date
+    //       : false
+    // );
+
+    const invalidExperience = formData.work_experience.find((exp) => {
+      const hasData =
+        exp.work_experiences || exp.institute || exp.start_date || exp.end_date;
+
+      return hasData && !exp.end_date;
+    });
+
+    if (invalidExperience) {
+      setError(
+        "End Date is required for every work experience unless it is marked as Current Job.",
+      );
+      setSubmitting(false);
+      return;
+    }
 
     try {
       const response = await fetch("/api/staff2", {
@@ -269,7 +306,7 @@ export const EditProfile = ({
         body: JSON.stringify({
           user_id,
           name: formData.name,
-          mobile_number : formData.mobile_number,
+          mobile_number: formData.mobile_number,
           gender: formData.gender,
           category: formData.category,
           research_interest: formData.research_interest,
@@ -286,7 +323,8 @@ export const EditProfile = ({
 
           labs: formData.labs.map((lab) => ({
             ...lab,
-            no_of_students: lab.no_of_students === "" ? null : lab.no_of_students,
+            no_of_students:
+              lab.no_of_students === "" ? null : lab.no_of_students,
           })),
           education: formData.education,
           work_experience: formData.work_experience,
@@ -374,6 +412,11 @@ export const EditProfile = ({
     "Lakshadweep",
   ];
 
+  const PAY_LEVEL_OPTIONS = Array.from(
+    { length: 14 },
+    (_, i) => `Level-${i + 1}`,
+  );
+
   return (
     <Dialog open={modal} onClose={handleClose} maxWidth="md" fullWidth>
       <form onSubmit={handleSubmit}>
@@ -443,7 +486,7 @@ export const EditProfile = ({
                 value={formData.department}
                 onChange={handleChange}
               >
-              {[...StaffdepList].map(([key, value]) => (
+                {[...StaffdepList].map(([key, value]) => (
                   <MenuItem key={key} value={key}>
                     {value}
                   </MenuItem>
@@ -471,14 +514,27 @@ export const EditProfile = ({
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
+                select
                 label="Pay Level"
-                name="pay_level"
-                value={formData.pay_level || "Not specified"}
-                disabled
-              />
+                value={formData.pay_level || ""}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    pay_level: e.target.value,
+                  }))
+                }
+                variant="outlined"
+              >
+                <MenuItem value="">Not specified</MenuItem>
+                {PAY_LEVEL_OPTIONS.map((level) => (
+                  <MenuItem key={level} value={level}>
+                    {level}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
 
             <Grid item xs={12} md={6}>
@@ -529,8 +585,8 @@ export const EditProfile = ({
                 label="Date of Joining"
                 name="date_of_joining"
                 value={formData.date_of_joining}
-                disabled
                 InputLabelProps={{ shrink: true }}
+                onChange={handleChange}
               />
             </Grid>
 
@@ -548,7 +604,6 @@ export const EditProfile = ({
           </Grid>
 
           <Divider sx={{ my: 4 }} />
-
 
           <Typography variant="h6" sx={{ mb: 2 }}>
             Education
@@ -590,7 +645,7 @@ export const EditProfile = ({
                     }
                   />
                 </Grid>
-                 <Grid item xs={12} md={2}>
+                <Grid item xs={12} md={2}>
                   <TextField
                     select
                     fullWidth
@@ -646,6 +701,7 @@ export const EditProfile = ({
                   <TextField
                     fullWidth
                     label="Role / Description"
+                    required
                     value={we.work_experiences}
                     onChange={(e) =>
                       updateWorkExperience(
@@ -659,6 +715,7 @@ export const EditProfile = ({
                 <Grid item xs={12} md={4}>
                   <TextField
                     fullWidth
+                    required
                     label="Institute"
                     value={we.institute}
                     onChange={(e) =>
@@ -669,31 +726,57 @@ export const EditProfile = ({
                 <Grid item xs={12} md={2}>
                   <TextField
                     fullWidth
+                    required
                     type="date"
                     label="Start Date"
                     value={we.start_date}
                     onChange={(e) =>
-                      updateWorkExperience(
-                        index,
-                        "start_date",
-                        e.target.value,
-                      )
+                      updateWorkExperience(index, "start_date", e.target.value)
                     }
                     InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
                 <Grid item xs={12} md={2}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    label="End Date"
-                    value={we.end_date}
-                    onChange={(e) =>
-                      updateWorkExperience(index, "end_date", e.target.value)
+                  {we.end_date === "Present" ? (
+                    <TextField
+                      fullWidth
+                      label="End Date"
+                      value="Present"
+                      InputProps={{ readOnly: true }}
+                    />
+                  ) : (
+                    <TextField
+                      fullWidth
+                      type="date"
+                      label="End Date"
+                      value={we.end_date || ""}
+                      required={we.end_date !== "Present"}
+                      disabled={we.end_date === "Present"}
+                      onChange={(e) =>
+                        updateWorkExperience(index, "end_date", e.target.value)
+                      }
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  )}
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={we.end_date === "Present"}
+                        disabled={hasCurrentJob && we.end_date !== "Present"}
+                        onChange={(e) =>
+                          updateWorkExperience(
+                            index,
+                            "end_date",
+                            e.target.checked ? "Present" : "",
+                          )
+                        }
+                        size="small"
+                      />
                     }
-                    InputLabelProps={{ shrink: true }}
+                    label="Current Job"
                   />
                 </Grid>
+
                 <Grid
                   item
                   xs={12}
@@ -813,7 +896,8 @@ export const EditProfile = ({
                     }
                   >
                     {BATCH_YEARS.filter(
-                      (yr) => Number(yr) > Number(parseBatch(lab.batch).start || 0),
+                      (yr) =>
+                        Number(yr) > Number(parseBatch(lab.batch).start || 0),
                     ).map((yr) => (
                       <MenuItem key={yr} value={yr}>
                         {yr}
@@ -877,7 +961,7 @@ export const EditProfile = ({
             Add Lab
           </Button>
 
-          <Divider sx={{ my: 4 }}/>
+          <Divider sx={{ my: 4 }} />
 
           <Typography variant="h6" sx={{ mb: 2 }}>
             Current Address
