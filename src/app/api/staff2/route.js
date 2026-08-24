@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { randomUUID } from "crypto";
 import { authOptions } from "@/lib/authOptions";
 import { query } from "@/lib/db";
-import { isValidDeptCode } from "@/lib/const";
+import { isValidDeptCode, getDeptFullName } from "@/lib/const";
 
 
 // EDUCATION HELPERS (keyed by email)
