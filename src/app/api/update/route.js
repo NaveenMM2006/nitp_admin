@@ -860,6 +860,22 @@ export async function PUT(request) {
           await invalidateProfileIfNeeded(type, params);
           return NextResponse.json(iprResult)
 
+        case "patents":
+          const userPatentResult = await query(
+            `UPDATE patents
+              SET title = ?, description = ?, patent_date = ?
+              WHERE id = ? AND email = ?`,
+            [
+              params.title,
+              params.description,
+              params.patent_date,
+              params.id,
+              params.email,
+            ],
+          );
+          await invalidateProfileIfNeeded(type, params);
+          return NextResponse.json(userPatentResult);
+
         case "startups":
           const startupResult = await query(
             `UPDATE startups SET 
