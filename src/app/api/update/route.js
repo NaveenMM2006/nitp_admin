@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/authOptions'
-import { invalidateProfileIfNeeded } from '@/lib/profileCache'
+import { invalidateProfileIfNeeded, invalidateUserProfile } from '@/lib/profileCache'
 import { invalidatePublicationsCache } from '@/lib/publicationsCache';
 import { PUBLICATION_TYPES } from '../../../lib/const'
 
@@ -789,6 +789,8 @@ export async function PUT(request) {
                 `INSERT INTO sponsored_projects_collaborater(sponsored_project_id, email) VALUES (?, ?)`,
                 [params.id, email],
               );
+              await invalidatePublicationsCache(email);
+              await invalidateUserProfile(email);
             }
           }
           await invalidateProfileIfNeeded(type, params);
@@ -831,6 +833,8 @@ export async function PUT(request) {
                 `INSERT INTO consultancy_projects_collaborater(consultancy_projects_id, email) VALUES (?, ?)`,
                 [params.id, email],
               );
+              await invalidatePublicationsCache(email);
+              await invalidateUserProfile(email);
             }
           }
           await invalidateProfileIfNeeded(type, params);
