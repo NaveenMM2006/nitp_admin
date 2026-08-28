@@ -379,37 +379,55 @@ export async function PUT(request) {
     if (session.user.email === params.email) {
       switch (type) {
         // Academic Records
-        case "phd_candidates":
-          const phdResult = await query(
-            `UPDATE phd_candidates SET 
-              student_name = ?,
-              roll_no = ?,
-              registration_year = ?,
-              registration_type = ?,
-              research_area = ?,
-              other_supervisors = ?,
-              current_status = ?,
-              completion_year = ?,
-              supervisor_type = ? ,
-              registration_date = ?
-            WHERE id = ? AND email = ?`,
-            [
-              params.student_name,
-              params.roll_no,
-              params.registration_year,
-              params.registration_type,
-              params.research_area,
-              params.other_supervisors,
-              params.current_status,
-              params.completion_year,
-              params.supervisor_type,
-              params.registration_date || null,
-              params.id,
-              params.email
-            ]
-          ); 
-          await invalidateProfileIfNeeded(type, params);
-          return NextResponse.json(phdResult)
+        case "phd_candidates": {
+            const toNull = (v) => (v === undefined || v === "" ? null : v);
+
+            // registration_date is optional — only format it if a valid value was provided
+            let formattedRegistrationDate = null;
+            if (params.registration_date) {
+              const d = new Date(params.registration_date);
+              if (!isNaN(d.getTime())) {
+                formattedRegistrationDate = d.toISOString().slice(0, 10); // YYYY-MM-DD
+              } else {
+                console.warn(
+                  `Invalid registration_date received for phd_candidates id ${params.id}:`,
+                  params.registration_date
+                );
+              }
+            }
+
+            const phdResult = await query(
+              `UPDATE phd_candidates SET 
+                student_name = ?,
+                roll_no = ?,
+                registration_year = ?,
+                registration_type = ?,
+                research_area = ?,
+                other_supervisors = ?,
+                current_status = ?,
+                completion_year = ?,
+                supervisor_type = ?,
+                registration_date = ?
+              WHERE id = ? AND email = ?`,
+              [
+                toNull(params.student_name),
+                toNull(params.roll_no),
+                toNull(params.registration_year),
+                toNull(params.registration_type),
+                toNull(params.research_area),
+                toNull(params.other_supervisors),
+                toNull(params.current_status),
+                toNull(params.completion_year),
+                toNull(params.supervisor_type),
+                formattedRegistrationDate,
+                params.id,
+                params.email,
+              ]
+            );
+
+            await invalidateProfileIfNeeded(type, params);
+            return NextResponse.json(phdResult);
+          }
 
         case "journal_papers": {
           try {
@@ -859,6 +877,22 @@ export async function PUT(request) {
           }
           await invalidateProfileIfNeeded(type, params);
           return NextResponse.json(iprResult)
+
+        case "patents":
+          const userPatentResult = await query(
+            `UPDATE patents
+              SET title = ?, description = ?, patent_date = ?
+              WHERE id = ? AND email = ?`,
+            [
+              params.title,
+              params.description,
+              params.patent_date,
+              params.id,
+              params.email,
+            ],
+          );
+          await invalidateProfileIfNeeded(type, params);
+          return NextResponse.json(userPatentResult);
 
         case "startups":
           const startupResult = await query(
