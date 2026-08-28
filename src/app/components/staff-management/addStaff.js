@@ -13,7 +13,7 @@ import {
   Box,
 } from '@mui/material'
 import { useState, useEffect } from 'react'
-import { StaffdepList, officerDesignations } from '@/lib/const'
+import { StaffdepList, officerDesignations,StaffDesignations } from '@/lib/const'
 import Toast from '@/app/components/common/Toast'
 
 
@@ -269,14 +269,19 @@ export function AddStaff({ open, onClose, onSuccess }) {
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={6}>
-                {formData.department === 'Officers' ? (
+                {formData.department === "Officers" ? (
                   <TextField
                     fullWidth
                     select
                     label="Designation"
                     required
                     value={formData.designation}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, designation: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        designation: e.target.value,
+                      }))
+                    }
                     variant="outlined"
                   >
                     {dynamicDesignations.map((designation) => (
@@ -291,30 +296,19 @@ export function AddStaff({ open, onClose, onSuccess }) {
                     select
                     label="Designation"
                     value={formData.designation || ""}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, designation: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        designation: e.target.value,
+                      }))
+                    }
                     variant="outlined"
                   >
-                    <MenuItem value="Technical Assistant">Technical Assistant</MenuItem>
-                    <MenuItem value="Technical Assistant (SG-I)">Technical Assistant (SG-I)</MenuItem>
-                    <MenuItem value="Technical Assistant (SG-II)">Technical Assistant (SG-II)</MenuItem>
-                    <MenuItem value="Sr Technical Assistant">Sr Technical Assistant</MenuItem>
-                    <MenuItem value="Technician">Technician</MenuItem>
-                    <MenuItem value="Technician (SG-I)">Technician (SG-I)</MenuItem>
-                    <MenuItem value="Technician (SG-II)">Technician (SG-II)</MenuItem>
-                    <MenuItem value="Sr Technician">Sr Technician</MenuItem>
-                    <MenuItem value="Assistant Technician">Assistant Technician</MenuItem>
-                    <MenuItem value="Jr Engineer">Jr Engineer</MenuItem>
-                    <MenuItem value="Assistant Engineer">Assistant Engineer</MenuItem>
-                    <MenuItem value="Assistant Engineer (SG-I)">Assistant Engineer (SG-I)</MenuItem>
-                    <MenuItem value="Assistant Engineer (SG-II)">Assistant Engineer (SG-II)</MenuItem>
-                    <MenuItem value="Office Attendant">Office Attendant</MenuItem>
-                    <MenuItem value="Sr Office Attendant">Sr Office Attendant</MenuItem>
-                    <MenuItem value="Jr Office Attendant">Jr Office Attendant</MenuItem>
-                    <MenuItem value="Superintendent">Superintendent</MenuItem>
-                    <MenuItem value="Superintendent (SG-I)">Superintendent (SG-I)</MenuItem>
-                    <MenuItem value="Superintendent (SG-II)">Superintendent (SG-II)</MenuItem>
-                    <MenuItem value="Jr Assistant Superintendent">Jr Assistant Superintendent</MenuItem>
-                    <MenuItem value="Senior Assistant">Senior Assistant</MenuItem>
+                    {StaffDesignations.map((designation) => (
+                      <MenuItem key={designation} value={designation}>
+                        {designation}
+                      </MenuItem>
+                    ))}
                   </TextField>
                 )}
               </Grid>

@@ -2,6 +2,62 @@ import { NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { depList } from '@/lib/const'
 
+// Parses "2020-2021" into a July 1 2020 – June 30 2021 date range, matching
+// the frontend's getAcademicYear() logic (month >= 7 belongs to the year
+// that starts that July).
+function parseAcademicYearRange(raw) {
+  if (!raw) return null
+  const match = raw.match(/^(\d{4})-(\d{4})$/)
+  if (!match) return null
+
+  const startYear = parseInt(match[1], 10)
+  const endYear = parseInt(match[2], 10)
+  if (endYear !== startYear + 1) return null
+
+  return {
+    from: `${startYear}-07-01`,
+    to: `${endYear}-06-30`,
+  }
+}
+
+// Builds JOIN + WHERE + params for one source table (sponsored_projects or
+// consultancy_projects), given whichever filters are active.
+function buildClause({ tableAlias, emailCol, dept, academicYearRange, status, search }) {
+  const conditions = []
+  const params = []
+  let join = ''
+
+  if (dept) {
+    join = `JOIN user u ON u.email = ${emailCol}`
+    conditions.push('u.department = ?')
+    params.push(dept)
+  }
+
+  if (academicYearRange) {
+    conditions.push(`${tableAlias}.start_date BETWEEN ? AND ?`)
+    params.push(academicYearRange.from, academicYearRange.to)
+  }
+
+  if (status) {
+    conditions.push(`${tableAlias}.status = ?`)
+    params.push(status)
+  }
+
+  if (search) {
+    const term = `%${search}%`
+    conditions.push(`(
+      ${tableAlias}.project_title LIKE ? OR
+      ${tableAlias}.funding_agency LIKE ? OR
+      ${tableAlias}.investigators LIKE ? OR
+      ${tableAlias}.email LIKE ?
+    )`)
+    params.push(term, term, term, term)
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  return { join, where, params }
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -11,6 +67,10 @@ export async function GET(request) {
     const page = Math.max(1, parseInt(searchParams.get('page')) || 1)
     const limit = Math.min(50, parseInt(searchParams.get('limit')) || 20)
     const offset = (page - 1) * limit
+
+    const academicYearRange = parseAcademicYearRange(searchParams.get('academic_year'))
+    const status = searchParams.get('status') || null
+    const search = searchParams.get('search') || null
 
     let total = 0
 
@@ -79,13 +139,22 @@ export async function GET(request) {
 
     switch (type) {
       case 'all': {
-        const count = await query(`
-          SELECT 
-            (SELECT COUNT(*) FROM sponsored_projects) +
-            (SELECT COUNT(*) FROM consultancy_projects) AS count
-        `)
+        const sp = buildClause({
+          tableAlias: 'sp', emailCol: 'sp.email', dept: null,
+          academicYearRange, status, search,
+        })
+        const cp = buildClause({
+          tableAlias: 'cp', emailCol: 'cp.email', dept: null,
+          academicYearRange, status, search,
+        })
 
-        total = Number(count[0].count)
+        const countRes = await query(
+          `SELECT
+            (SELECT COUNT(*) FROM sponsored_projects sp ${sp.where}) +
+            (SELECT COUNT(*) FROM consultancy_projects cp ${cp.where}) AS count`,
+          [...sp.params, ...cp.params]
+        )
+        total = Number(countRes[0].count)
 
         const results = await query(`
           SELECT * FROM (
@@ -100,7 +169,7 @@ export async function GET(request) {
           LEFT JOIN sponsored_projects_collaborater spc ON sp.id = spc.sponsored_project_id
           GROUP BY sp.id
 
-          UNION ALL
+            UNION ALL
 
           SELECT 
             cp.id, cp.email, cp.project_title, cp.funding_agency,
@@ -114,8 +183,9 @@ export async function GET(request) {
           GROUP BY cp.id
           ) AS combined
           ORDER BY sort_date DESC
-          LIMIT ${limit} OFFSET ${offset}
-        `)
+          LIMIT ${limit} OFFSET ${offset}`,
+          [...sp.params, ...cp.params]
+        )
 
         const dataWithCollaborators = results.map(row => ({
           ...row,
@@ -160,11 +230,17 @@ export async function GET(request) {
                WHERE u1.department = ? OR u2.department = ?) AS count
           `, [dept, dept, dept, dept])
 
-          total = Number(count[0].count)
+          const countRes = await query(
+            `SELECT
+              (SELECT COUNT(*) FROM sponsored_projects sp ${sp.join} ${sp.where}) +
+              (SELECT COUNT(*) FROM consultancy_projects cp ${cp.join} ${cp.where}) AS count`,
+            [...sp.params, ...cp.params]
+          )
+          total = Number(countRes[0].count)
 
-          const results = await query(`
-            SELECT * FROM (
-              SELECT 
+          const results = await query(
+            `SELECT * FROM (
+              SELECT
                 u.name, u.department, u.designation, u.ext_no, u.research_interest,
                 u.academic_responsibility, u.image, u.administration, u.cv,
                 u.linkedin, u.google_scholar, u.personal_webpage, u.scopus,
@@ -184,7 +260,7 @@ export async function GET(request) {
 
               UNION ALL
 
-              SELECT 
+              SELECT
                 u.name, u.department, u.designation, u.ext_no, u.research_interest,
                 u.academic_responsibility, u.image, u.administration, u.cv,
                 u.linkedin, u.google_scholar, u.personal_webpage, u.scopus,
