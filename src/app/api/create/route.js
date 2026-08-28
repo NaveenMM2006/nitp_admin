@@ -440,61 +440,133 @@ export async function POST(request) {
             
             return NextResponse.json(chapterResult)
 
-          case 'sponsored_projects':
-            const sponsoredResult = await query(
-              `INSERT INTO sponsored_projects(id, email, role, project_title, funding_agency, financial_outlay, start_date, end_date, investigators, pi_institute, status, funds_received) VALUES (?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                params.id,
-                params.email,
-                params.role,
-                params.project_title,
-                params.funding_agency,
-                params.financial_outlay,
-                params.start_date,
-                params.end_date,
-                params.investigators,
-                params.pi_institute,
-                params.status,
-                params.funds_received
-              ]
-            )
-            if (params.collaboraters && Array.isArray(params.collaboraters)) {
-              for (const email of params.collaboraters) {
-                await query(
-                  `INSERT INTO sponsored_projects_collaborater(sponsored_project_id, email) VALUES (?, ?)`,
-                  [params.id, email]
-                )
-              }
-            }
-            await invalidateProfileIfNeeded(type, params);
-            return NextResponse.json(sponsoredResult)
+case 'sponsored_projects': {
+  // 1. Insert main sponsored project
+  await query(
+    `INSERT INTO sponsored_projects (
+      id, email, role, project_title, funding_agency,
+      financial_outlay, start_date, end_date, investigators,
+      pi_institute, status, funds_received
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      params.id,
+      params.email,
+      params.role,
+      params.project_title,
+      params.funding_agency,
+      params.financial_outlay,
+      params.start_date,
+      params.end_date,
+      params.investigators,
+      params.pi_institute,
+      params.status,
+      params.funds_received
+    ]
+  );
 
-          case 'consultancy_projects':
-            const consultancyResult = await query(
-              `INSERT INTO consultancy_projects(id, email,role, project_title, funding_agency, financial_outlay, start_date, period_months, investigators, status) VALUES (?, ?, ?,?, ?, ?, ?, ?, ?, ?)`,
-              [
-                params.id,
-                params.email,
-                params.role,
-                params.project_title,
-                params.funding_agency,
-                params.financial_outlay,
-                params.start_date,
-                params.period_months,
-                params.investigators,
-                params.status
-              ]
-            )
-            if (params.collaboraters && Array.isArray(params.collaboraters)) {
-              for (const email of params.collaboraters) {
-                await query(
-                  `INSERT INTO consultancy_projects_collaborater(consultancy_projects_id, email) VALUES (?, ?)`,
-                  [params.id, email]
-                )
-              }
-            }
-            await invalidateProfileIfNeeded(type, params);
-            return NextResponse.json(consultancyResult)
+  // 2. Insert collaborators
+  if (params.collaboraters && Array.isArray(params.collaboraters)) {
+    for (const email of params.collaboraters) {
+      await query(
+        `INSERT INTO sponsored_projects_collaborater (
+          sponsored_project_id, email
+        ) VALUES (?, ?)`,
+        [params.id, email]
+      );
+    }
+  }
+
+  // 3. Fetch project with collaborators
+  const sponsoredWithCollaborators = await query(
+    `SELECT sp.*, GROUP_CONCAT(spc.email) AS collaboraters
+     FROM sponsored_projects sp
+     LEFT JOIN sponsored_projects_collaborater spc
+       ON sp.id = spc.sponsored_project_id
+     WHERE sp.id = ?
+     GROUP BY sp.id`,
+    [params.id]
+  );
+
+  // 4. Invalidate profile cache
+  await invalidateProfileIfNeeded(type, params);
+
+  // 5. Invalidate primary user's cache
+  await invalidatePublicationsCache(params.email);
+
+  // 6. Invalidate collaborators' caches
+  if (params.collaboraters && Array.isArray(params.collaboraters)) {
+    for (const email of params.collaboraters) {
+      await invalidatePublicationsCache(email);
+    }
+  }
+
+  // 7. Return consistent response
+  return NextResponse.json({
+    sponsoredProject: sponsoredWithCollaborators[0] || null
+  });
+}
+
+case 'consultancy_projects': {
+  // 1. Insert the main consultancy project record
+  const consultancyResult = await query(
+    `INSERT INTO consultancy_projects (
+      id, email, role, project_title, funding_agency, 
+      financial_outlay, start_date, period_months, investigators, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      params.id,
+      params.email,
+      params.role,
+      params.project_title,
+      params.funding_agency,
+      params.financial_outlay,
+      params.start_date,
+      params.period_months,
+      params.investigators,
+      params.status
+    ]
+  );
+
+  // 2. Insert collaborators if provided
+  if (params.collaboraters && Array.isArray(params.collaboraters)) {
+    for (const email of params.collaboraters) {
+      await query(
+        `INSERT INTO consultancy_projects_collaborater (consultancy_projects_id, email) 
+         VALUES (?, ?)`,
+        [params.id, email]
+      );
+    }
+  }
+
+  // 3. Fetch the record along with aggregated collaborators for the frontend
+  const consultancyWithCollaborators = await query(
+    `SELECT cp.*, GROUP_CONCAT(cpc.email) AS collaboraters 
+     FROM consultancy_projects cp 
+     LEFT JOIN consultancy_projects_collaborater cpc ON cp.id = cpc.consultancy_projects_id 
+     WHERE cp.id = ? 
+     GROUP BY cp.id`,
+    [params.id]
+  );
+
+  // 4. Handle global profile cache invalidation
+  await invalidateProfileIfNeeded(type, params);
+
+  // 5. Invalidate publications/projects cache for the primary author
+  await invalidatePublicationsCache(params.email);
+
+  // 6. Invalidate cache for all co-consultants/collaborators
+  if (params.collaboraters && Array.isArray(params.collaboraters)) {
+    for (const email of params.collaboraters) {
+      await invalidatePublicationsCache(email);
+    }
+  }
+
+  // 7. Return the data object directly to match the structure
+  return NextResponse.json({ 
+    consultancy: consultancyWithCollaborators[0] || null 
+  });
+}
+
 
           case 'teaching_engagement':
             const teachingResult = await query(
