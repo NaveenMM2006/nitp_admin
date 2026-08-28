@@ -52,13 +52,35 @@ export async function GET(request) {
 
 
       if (depList.has(type)) {        
+        const deptName = depList.get(type);
         for (const table of facultyTables) {
-          const tableCount = await query(
-            `SELECT COUNT(*) AS count FROM ${table} AS t 
-             INNER JOIN user AS u ON t.email = u.email 
-             WHERE u.department = ?`,
-            [depList.get(type)]
-          );          
+          let tableCount;
+          if (table === 'sponsored_projects') {
+            tableCount = await query(
+              `SELECT COUNT(DISTINCT sp.id) AS count FROM sponsored_projects sp
+               LEFT JOIN sponsored_projects_collaborater spc ON sp.id = spc.sponsored_project_id
+               LEFT JOIN user u1 ON u1.email = sp.email
+               LEFT JOIN user u2 ON u2.email = spc.email
+               WHERE u1.department = ? OR u2.department = ?`,
+              [deptName, deptName]
+            );
+          } else if (table === 'consultancy_projects') {
+            tableCount = await query(
+              `SELECT COUNT(DISTINCT cp.id) AS count FROM consultancy_projects cp
+               LEFT JOIN consultancy_projects_collaborater cpc ON cp.id = cpc.consultancy_projects_id
+               LEFT JOIN user u1 ON u1.email = cp.email
+               LEFT JOIN user u2 ON u2.email = cpc.email
+               WHERE u1.department = ? OR u2.department = ?`,
+              [deptName, deptName]
+            );
+          } else {
+            tableCount = await query(
+              `SELECT COUNT(*) AS count FROM ${table} AS t 
+               INNER JOIN user AS u ON t.email = u.email 
+               WHERE u.department = ?`,
+              [deptName]
+            );
+          }
           counts[table] = tableCount[0].count;
         }
       

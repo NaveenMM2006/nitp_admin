@@ -4,7 +4,7 @@ import { query } from '@/lib/db'
 import { ROLES, hasAccess } from '@/lib/roles'
 // import { authOptions } from '../auth/[...nextauth]/route'
 import { authOptions } from '@/lib/authOptions'
-import { invalidateProfileIfNeeded } from '@/lib/profileCache'
+import { invalidateProfileIfNeeded, invalidateUserProfile } from '@/lib/profileCache'
 import { notice_sub_types } from '@/lib/const';
 import { invalidatePublicationsCache } from '@/lib/publicationsCache'
 
@@ -493,16 +493,24 @@ case 'sponsored_projects': {
   // 5. Invalidate primary user's cache
   await invalidatePublicationsCache(params.email);
 
-  // 6. Invalidate collaborators' caches
+  // 6. Invalidate collaborators' caches (both publication and profile)
   if (params.collaboraters && Array.isArray(params.collaboraters)) {
     for (const email of params.collaboraters) {
       await invalidatePublicationsCache(email);
+      await invalidateUserProfile(email);
     }
   }
 
   // 7. Return consistent response
+  const projectObj = sponsoredWithCollaborators[0] || null;
+  if (projectObj) {
+    projectObj.collaboraters = projectObj.collaboraters
+      ? projectObj.collaboraters.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+  }
+
   return NextResponse.json({
-    sponsoredProject: sponsoredWithCollaborators[0] || null
+    sponsoredProject: projectObj
   });
 }
 
@@ -554,16 +562,24 @@ case 'consultancy_projects': {
   // 5. Invalidate publications/projects cache for the primary author
   await invalidatePublicationsCache(params.email);
 
-  // 6. Invalidate cache for all co-consultants/collaborators
+  // 6. Invalidate cache for all co-consultants/collaborators (publication and profile)
   if (params.collaboraters && Array.isArray(params.collaboraters)) {
     for (const email of params.collaboraters) {
       await invalidatePublicationsCache(email);
+      await invalidateUserProfile(email);
     }
   }
 
   // 7. Return the data object directly to match the structure
+  const projectObj = consultancyWithCollaborators[0] || null;
+  if (projectObj) {
+    projectObj.collaboraters = projectObj.collaboraters
+      ? projectObj.collaboraters.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+  }
+
   return NextResponse.json({ 
-    consultancy: consultancyWithCollaborators[0] || null 
+    consultancy: projectObj 
   });
 }
 

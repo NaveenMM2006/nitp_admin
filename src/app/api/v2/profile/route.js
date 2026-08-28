@@ -99,13 +99,21 @@ const SECTION_QUERIES = {
   }],
   sponsored_projects: [{
     key: 'sponsored_projects', twoParams: true,
-    sql: `SELECT sp.* FROM sponsored_projects sp WHERE sp.email = ? OR sp.id IN (
-            SELECT sponsored_project_id FROM sponsored_projects_collaborater WHERE email = ?)`,
+    sql: `SELECT sp.*, GROUP_CONCAT(spc.email) AS collaboraters
+          FROM sponsored_projects sp
+          LEFT JOIN sponsored_projects_collaborater spc ON sp.id = spc.sponsored_project_id
+          WHERE sp.email = ? OR sp.id IN (
+            SELECT sponsored_project_id FROM sponsored_projects_collaborater WHERE email = ?
+          ) GROUP BY sp.id`,
   }],
   consultancy_projects: [{
     key: 'consultancy_projects', twoParams: true,
-    sql: `SELECT cp.* FROM consultancy_projects cp WHERE cp.email = ? OR cp.id IN (
-            SELECT consultancy_projects_id FROM consultancy_projects_collaborater WHERE email = ?)`,
+    sql: `SELECT cp.*, GROUP_CONCAT(cpc.email) AS collaboraters
+          FROM consultancy_projects cp
+          LEFT JOIN consultancy_projects_collaborater cpc ON cp.id = cpc.consultancy_projects_id
+          WHERE cp.email = ? OR cp.id IN (
+            SELECT consultancy_projects_id FROM consultancy_projects_collaborater WHERE email = ?
+          ) GROUP BY cp.id`,
   }],
   ipr: [{
     key: 'ipr', twoParams: true,
@@ -174,8 +182,8 @@ export async function GET(request) {
         (SELECT COUNT(*) FROM journal_papers                WHERE email = ?) AS journal_papers,
         (SELECT COUNT(*) FROM conference_papers             WHERE email = ?) AS conference_papers,
         (SELECT COUNT(*) FROM phd_candidates                WHERE email = ?) AS phd_candidates,
-        (SELECT COUNT(*) FROM sponsored_projects            WHERE email = ?) AS sponsored_projects,
-        (SELECT COUNT(*) FROM consultancy_projects          WHERE email = ?) AS consultancy_projects,
+        (SELECT COUNT(DISTINCT sp.id) FROM sponsored_projects sp WHERE sp.email = ? OR sp.id IN (SELECT sponsored_project_id FROM sponsored_projects_collaborater WHERE email = ?)) AS sponsored_projects,
+        (SELECT COUNT(DISTINCT cp.id) FROM consultancy_projects cp WHERE cp.email = ? OR cp.id IN (SELECT consultancy_projects_id FROM consultancy_projects_collaborater WHERE email = ?)) AS consultancy_projects,
         (SELECT COUNT(*) FROM startups                      WHERE email = ?) AS startups,
         (SELECT COUNT(*) FROM ipr                           WHERE email = ?) AS ipr,
         (SELECT COUNT(*) FROM book_chapters                 WHERE email = ?) AS book_chapters,
@@ -198,7 +206,7 @@ export async function GET(request) {
         (SELECT COUNT(*) FROM visits_abroad                 WHERE email = ?) AS visits_abroad,
         (SELECT COUNT(*) FROM special_lectures              WHERE email = ?) AS special_lectures,
         (SELECT COUNT(*) FROM honours_awards                WHERE email = ?) AS honours_awards
-      `, Array(27).fill(email)),
+      `, Array(29).fill(email)),
     ])
 
     const summary = { profile: profileResult[0], about_me: aboutMe, counts: counts[0] }
@@ -221,10 +229,10 @@ export async function GET(request) {
     const data = {}
     queries.forEach((q, i) => {
       let rows = results[i] || []
-      if (q.key === 'journal_papers') {
+      if (['journal_papers', 'conference_papers', 'sponsored_projects', 'consultancy_projects'].includes(q.key)) {
         rows = rows.map(r => ({
           ...r,
-          collaboraters: r.collaboraters ? r.collaboraters.split(',').map(s => s.trim()) : [],
+          collaboraters: r.collaboraters ? r.collaboraters.split(',').map(s => s.trim()).filter(Boolean) : [],
         }))
       }
       data[q.key] = rows

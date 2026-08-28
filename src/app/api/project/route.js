@@ -20,17 +20,20 @@ function parseAcademicYearRange(raw) {
   }
 }
 
-// Builds JOIN + WHERE + params for one source table (sponsored_projects or
-// consultancy_projects), given whichever filters are active.
-function buildClause({ tableAlias, emailCol, dept, academicYearRange, status, search }) {
+// Builds WHERE conditions + params for one source table (sponsored_projects or
+// consultancy_projects), supporting email, department, academic year, status, and search.
+function buildProjectClause({ tableAlias, collabTable, collabIdCol, emailParam, dept, academicYearRange, status, search }) {
   const conditions = []
   const params = []
-  let join = ''
+
+  if (emailParam) {
+    conditions.push(`(${tableAlias}.email = ? OR ${tableAlias}.id IN (SELECT ${collabIdCol} FROM ${collabTable} WHERE email = ?))`)
+    params.push(emailParam, emailParam)
+  }
 
   if (dept) {
-    join = `JOIN user u ON u.email = ${emailCol}`
-    conditions.push('u.department = ?')
-    params.push(dept)
+    conditions.push(`(${tableAlias}.email IN (SELECT email FROM user WHERE department = ?) OR ${tableAlias}.id IN (SELECT ${collabIdCol} FROM ${collabTable} spc JOIN user u2 ON u2.email = spc.email WHERE u2.department = ?))`)
+    params.push(dept, dept)
   }
 
   if (academicYearRange) {
@@ -55,7 +58,7 @@ function buildClause({ tableAlias, emailCol, dept, academicYearRange, status, se
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
-  return { join, where, params }
+  return { where, params }
 }
 
 export async function GET(request) {
@@ -63,6 +66,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url)
 
     const type = searchParams.get('type')
+    const emailParam = searchParams.get('email')
     const page = Math.max(1, parseInt(searchParams.get('page')) || 1)
     const limit = Math.min(50, parseInt(searchParams.get('limit')) || 20)
     const offset = (page - 1) * limit
@@ -71,148 +75,111 @@ export async function GET(request) {
     const status = searchParams.get('status') || null
     const search = searchParams.get('search') || null
 
-    let total = 0
-
-    switch (type) {
-      case 'all': {
-        const sp = buildClause({
-          tableAlias: 'sp', emailCol: 'sp.email', dept: null,
-          academicYearRange, status, search,
-        })
-        const cp = buildClause({
-          tableAlias: 'cp', emailCol: 'cp.email', dept: null,
-          academicYearRange, status, search,
-        })
-
-        const countRes = await query(
-          `SELECT
-            (SELECT COUNT(*) FROM sponsored_projects sp ${sp.where}) +
-            (SELECT COUNT(*) FROM consultancy_projects cp ${cp.where}) AS count`,
-          [...sp.params, ...cp.params]
-        )
-        total = Number(countRes[0].count)
-
-        const results = await query(
-          `SELECT * FROM (
-            SELECT
-              id, email, project_title, funding_agency,
-              financial_outlay, investigators, pi_institute,
-              status, funds_received, role,
-              start_date, end_date,
-              'sponsored' AS project_type, end_date AS sort_date
-            FROM sponsored_projects sp
-            ${sp.where}
-
-            UNION ALL
-
-            SELECT
-              id, email, project_title, funding_agency,
-              financial_outlay, investigators, NULL AS pi_institute,
-              status, NULL AS funds_received, role,
-              start_date, NULL AS end_date,
-              'consultancy' AS project_type, start_date AS sort_date
-            FROM consultancy_projects cp
-            ${cp.where}
-          ) AS combined
-          ORDER BY sort_date DESC
-          LIMIT ${limit} OFFSET ${offset}`,
-          [...sp.params, ...cp.params]
-        )
-
-        return NextResponse.json({
-          page,
-          limit,
-          offset,
-          total,
-          totalPages: Math.ceil(total / limit),
-          data: results
-        })
-      }
-
-      case 'count': {
-        const count = await query(`
-          SELECT 
-            (SELECT COUNT(*) FROM sponsored_projects) +
-            (SELECT COUNT(*) FROM consultancy_projects) AS count
-        `)
-
-        return NextResponse.json({ projectCount: count[0].count })
-      }
-
-      default: {
-        if (depList.has(type)) {
-          const dept = depList.get(type)
-
-          const sp = buildClause({
-            tableAlias: 'sp', emailCol: 'sp.email', dept,
-            academicYearRange, status, search,
-          })
-          const cp = buildClause({
-            tableAlias: 'cp', emailCol: 'cp.email', dept,
-            academicYearRange, status, search,
-          })
-
-          const countRes = await query(
-            `SELECT
-              (SELECT COUNT(*) FROM sponsored_projects sp ${sp.join} ${sp.where}) +
-              (SELECT COUNT(*) FROM consultancy_projects cp ${cp.join} ${cp.where}) AS count`,
-            [...sp.params, ...cp.params]
-          )
-          total = Number(countRes[0].count)
-
-          const results = await query(
-            `SELECT * FROM (
-              SELECT
-                u.name, u.department, u.designation, u.ext_no, u.research_interest,
-                u.academic_responsibility, u.image, u.administration, u.cv,
-                u.linkedin, u.google_scholar, u.personal_webpage, u.scopus,
-                u.vidwan, u.orcid, u.is_retired, u.retirement_date, u.is_deleted,
-                sp.id, sp.email, sp.project_title, sp.funding_agency,
-                sp.financial_outlay, sp.investigators, sp.pi_institute,
-                sp.status, sp.funds_received, sp.role,
-                sp.start_date, sp.end_date,
-                'sponsored' AS project_type, sp.end_date AS sort_date
-              FROM sponsored_projects sp
-              ${sp.join}
-              ${sp.where}
-
-              UNION ALL
-
-              SELECT
-                u.name, u.department, u.designation, u.ext_no, u.research_interest,
-                u.academic_responsibility, u.image, u.administration, u.cv,
-                u.linkedin, u.google_scholar, u.personal_webpage, u.scopus,
-                u.vidwan, u.orcid, u.is_retired, u.retirement_date, u.is_deleted,
-                cp.id, cp.email, cp.project_title, cp.funding_agency,
-                cp.financial_outlay, cp.investigators, NULL AS pi_institute,
-                cp.status, NULL AS funds_received, cp.role,
-                cp.start_date, NULL AS end_date,
-                'consultancy' AS project_type, cp.start_date AS sort_date
-              FROM consultancy_projects cp
-              ${cp.join}
-              ${cp.where}
-            ) AS combined
-            ORDER BY sort_date DESC
-            LIMIT ${limit} OFFSET ${offset}`,
-            [...sp.params, ...cp.params]
-          )
-
-          return NextResponse.json({
-            page,
-            limit,
-            offset,
-            total,
-            totalPages: Math.ceil(total / limit),
-            data: results
-          })
-        }
-
-        return NextResponse.json(
-          { message: 'Invalid type parameter' },
-          { status: 400 }
-        )
-      }
+    if (type === 'count') {
+      const count = await query(`
+        SELECT 
+          (SELECT COUNT(*) FROM sponsored_projects) +
+          (SELECT COUNT(*) FROM consultancy_projects) AS count
+      `)
+      return NextResponse.json({ projectCount: count[0].count })
     }
+
+    let dept = null
+    if (type && type !== 'all' && depList.has(type)) {
+      dept = depList.get(type)
+    } else if (type && type !== 'all' && !emailParam) {
+      return NextResponse.json(
+        { message: 'Invalid type parameter' },
+        { status: 400 }
+      )
+    }
+
+    const spClause = buildProjectClause({
+      tableAlias: 'sp',
+      collabTable: 'sponsored_projects_collaborater',
+      collabIdCol: 'sponsored_project_id',
+      emailParam,
+      dept,
+      academicYearRange,
+      status,
+      search,
+    })
+
+    const cpClause = buildProjectClause({
+      tableAlias: 'cp',
+      collabTable: 'consultancy_projects_collaborater',
+      collabIdCol: 'consultancy_projects_id',
+      emailParam,
+      dept,
+      academicYearRange,
+      status,
+      search,
+    })
+
+    const countRes = await query(
+      `SELECT
+        (SELECT COUNT(DISTINCT sp.id) FROM sponsored_projects sp ${spClause.where}) +
+        (SELECT COUNT(DISTINCT cp.id) FROM consultancy_projects cp ${cpClause.where}) AS count`,
+      [...spClause.params, ...cpClause.params]
+    )
+    const total = Number(countRes[0].count)
+
+    const results = await query(`
+      SELECT * FROM (
+        SELECT 
+          u.name, u.department, u.designation, u.ext_no, u.research_interest,
+          u.academic_responsibility, u.image, u.administration, u.cv,
+          u.linkedin, u.google_scholar, u.personal_webpage, u.scopus,
+          u.vidwan, u.orcid, u.is_retired, u.retirement_date, u.is_deleted,
+          sp.id, sp.email, sp.project_title, sp.funding_agency,
+          sp.financial_outlay, sp.investigators, sp.pi_institute,
+          sp.status, sp.funds_received, sp.role,
+          sp.start_date, sp.end_date,
+          GROUP_CONCAT(DISTINCT spc.email) AS collaboraters,
+          'sponsored' AS project_type, sp.end_date AS sort_date
+        FROM sponsored_projects sp
+        LEFT JOIN user u ON u.email = sp.email
+        LEFT JOIN sponsored_projects_collaborater spc ON sp.id = spc.sponsored_project_id
+        ${spClause.where}
+        GROUP BY sp.id
+
+        UNION ALL
+
+        SELECT 
+          u.name, u.department, u.designation, u.ext_no, u.research_interest,
+          u.academic_responsibility, u.image, u.administration, u.cv,
+          u.linkedin, u.google_scholar, u.personal_webpage, u.scopus,
+          u.vidwan, u.orcid, u.is_retired, u.retirement_date, u.is_deleted,
+          cp.id, cp.email, cp.project_title, cp.funding_agency,
+          cp.financial_outlay, cp.investigators, NULL AS pi_institute,
+          cp.status, NULL AS funds_received, cp.role,
+          cp.start_date, NULL AS end_date,
+          GROUP_CONCAT(DISTINCT cpc.email) AS collaboraters,
+          'consultancy' AS project_type, cp.start_date AS sort_date
+        FROM consultancy_projects cp
+        LEFT JOIN user u ON u.email = cp.email
+        LEFT JOIN consultancy_projects_collaborater cpc ON cp.id = cpc.consultancy_projects_id
+        ${cpClause.where}
+        GROUP BY cp.id
+      ) AS combined
+      ORDER BY sort_date DESC
+      LIMIT ${limit} OFFSET ${offset}`,
+      [...spClause.params, ...cpClause.params]
+    )
+
+    const dataWithCollaborators = results.map(row => ({
+      ...row,
+      collaboraters: row.collaboraters ? row.collaboraters.split(',').map(s => s.trim()).filter(Boolean) : []
+    }))
+
+    return NextResponse.json({
+      page,
+      limit,
+      offset,
+      total,
+      totalPages: Math.ceil(total / limit),
+      data: dataWithCollaborators
+    })
 
   } catch (error) {
     console.error('API Error:', error)
