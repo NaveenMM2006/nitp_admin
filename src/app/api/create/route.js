@@ -46,11 +46,12 @@ export async function POST(request) {
       if (params.data.notice_type ) {
         const noticeTypeKey = params.data.notice_type.toUpperCase();
         if (notice_sub_types.hasOwnProperty(noticeTypeKey)) {
-          if (
-            !params.data.notice_sub_type ||
-            !notice_sub_types[noticeTypeKey].some(
-            ([_,upKey]) => upKey===params.data.notice_sub_type,
-            )          ) {
+          
+          const matchedSubType = notice_sub_types[noticeTypeKey].find(
+            ([id, label]) => id === params.data.notice_sub_type || label === params.data.notice_sub_type
+          );
+          
+          if (!params.data.notice_sub_type || !matchedSubType) {
             return NextResponse.json(
               {
                 message:
@@ -59,6 +60,10 @@ export async function POST(request) {
               },
               { status: 400 },
             );
+          }
+          
+          if (params.data.notice_type.toLowerCase() === "admissions") {
+            params.data.notice_sub_type = matchedSubType[0];
           }
         }
       }
@@ -83,7 +88,9 @@ export async function POST(request) {
     params.data.notice_type || null,
     session.user.email,    new Date().getTime(),
     params.data.department || null,
-    params.data.notice_sub_type?.trim()?.toUpperCase()||null
+    params.data.notice_type?.toLowerCase() === "admissions" 
+      ? params.data.notice_sub_type?.trim() || null
+      : params.data.notice_sub_type?.trim()?.toUpperCase() || null
   ]
       )
       await invalidateProfileIfNeeded(type, params);
