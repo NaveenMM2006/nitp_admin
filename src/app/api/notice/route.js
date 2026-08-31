@@ -57,7 +57,13 @@ export async function GET(request) {
         total = Number(acadCount[0].count);
         results = await query(`SELECT * FROM notices WHERE notice_type = 'academics' ORDER BY timestamp DESC LIMIT ${limit} OFFSET ${offset}`);
         break;
-
+      
+      case "exam":
+        const examCount = await query(`SELECT COUNT(*) as count FROM notices WHERE notice_type = 'exam'`);
+        total = Number(examCount[0].count);
+        results = await query(`SELECT * FROM notices WHERE notice_type = 'exam' ORDER BY timestamp DESC LIMIT ${limit} OFFSET ${offset}`);
+        break;
+        
       case "facultystaffjob":
         const jobCount = await query(`SELECT COUNT(*) as count FROM notices WHERE notice_type = 'facultystaffjob'`);
         total = Number(jobCount[0].count);

@@ -4,6 +4,7 @@ export const administrationList = new Map([
   ['genralintranet', 'Intranet - General Notice'],
   ['tender', 'Tender'],
   ['job', 'JOB'],
+  ['exam', 'Examination Section'],
   ['bogminutes', 'BOG/FC/BWC Minutes'],
   ['senateminutes', 'Senate Minutes'],
   ['annualreport', 'Annual Reports'],
