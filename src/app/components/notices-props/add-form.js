@@ -45,10 +45,12 @@ export const AddForm = ({ handleClose, modal }) => {
         // category is not used in API - left as is for now
         type: session?.user?.role === 'ACADEMIC_ADMIN' ? 'academics' : 
               session?.user?.role === 'DEPT_ADMIN' ? 'department' :
-              session?.user?.role === 'TENDER_NOTICE_ADMIN' ? 'tender' : 'general',
+              session?.user?.role === 'TENDER_NOTICE_ADMIN' ? 'tender' :
+              session?.user?.role === 'EXAM_ADMIN' ? 'exam' : 'general',
         category: session?.user?.role === 'ACADEMIC_ADMIN' ? 'academics' : 
                  session?.user?.role === 'DEPT_ADMIN' ? 'department' :
-                 session?.user?.role === 'TENDER_NOTICE_ADMIN' ? 'tender' : 'general',
+                 session?.user?.role === 'TENDER_NOTICE_ADMIN' ? 'tender' :
+                 session?.user?.role === 'EXAM_ADMIN' ? 'exam' : 'general',
         important: false,
         department: session?.user?.role === 'DEPT_ADMIN' ? session.user.department : null,
         isDept: session?.user?.role === 'DEPT_ADMIN' ? 1 : 0,
@@ -144,9 +146,14 @@ export const AddForm = ({ handleClose, modal }) => {
                 <MenuItem key="academics" value="academics">Academics</MenuItem>
             ];
         }
-        if (session?.user?.role === 'DEPT_ADMIN') {
+        if (session?.user?.role === 'TENDER_NOTICE_ADMIN') {
             return [
-                <MenuItem key="department" value="department">Department</MenuItem>
+                <MenuItem key="tender" value="tender">Tender</MenuItem>
+            ];
+        }
+        if (session?.user?.role === 'EXAM_ADMIN') {
+            return [
+                <MenuItem key="exam" value="exam">Examination Section</MenuItem>
             ];
         }
         return [
@@ -272,7 +279,7 @@ export const AddForm = ({ handleClose, modal }) => {
                                         onChange={handleChange}
                                         defaultValue={session?.user?.role === 'ACADEMIC_ADMIN' ? 'academics' : 'general'}
                                         label="Notice Type"
-                                        disabled={session?.user?.role === 'DEPT_ADMIN'}
+                                        disabled={session?.user?.role === 'DEPT_ADMIN' || session?.user?.role === 'ACADEMIC_ADMIN' || session?.user?.role === 'TENDER_NOTICE_ADMIN' || session?.user?.role === 'EXAM_ADMIN'}
                                     >
                                         {getNoticeTypeOptions()}
                                     </Select>

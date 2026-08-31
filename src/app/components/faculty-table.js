@@ -45,6 +45,7 @@ const ROLE_OPTIONS = [
   { value: 'DEPT_ADMIN', label: 'Department Admin' },
   { value: 'TENDER_NOTICE_ADMIN', label: 'Tender Notice Admin' },
   { value: 'CLUB_ADMIN', label: 'Club Admin' },
+  { value: 'EXAM_ADMIN', label: 'Exam Admin' },
 ]
 
 const columns = [

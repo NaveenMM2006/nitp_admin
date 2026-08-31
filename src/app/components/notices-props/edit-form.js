@@ -313,11 +313,22 @@ export const EditForm = ({ data, handleClose, modal }) => {
                                         value={content.type}
                                         onChange={handleChange}
                                         label="Notice Type"
-                                        disabled={session?.user?.role === 'DEPT_ADMIN'}
+                                        disabled={
+                                            session?.user?.role === 'DEPT_ADMIN' ||
+                                            session?.user?.role === 'ACADEMIC_ADMIN' ||
+                                            session?.user?.role === 'TENDER_NOTICE_ADMIN' ||
+                                            session?.user?.role === 'EXAM_ADMIN'
+                                        }
                                         required
                                     >
                                         {session?.user?.role === 'DEPT_ADMIN' ? (
                                             <MenuItem value="department">Department</MenuItem>
+                                        ) : session?.user?.role === 'ACADEMIC_ADMIN' ? (
+                                            <MenuItem value="academics">Academics</MenuItem>
+                                        ) : session?.user?.role === 'TENDER_NOTICE_ADMIN' ? (
+                                            <MenuItem value="tender">Tender</MenuItem>
+                                        ) : session?.user?.role === 'EXAM_ADMIN' ? (
+                                            <MenuItem value="exam">Examination Section</MenuItem>
                                         ) : [
                                             <MenuItem value="general" key="general">General</MenuItem>,
                                             <MenuItem value="department" key="department">Department</MenuItem>,
