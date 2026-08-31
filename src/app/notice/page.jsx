@@ -40,6 +40,12 @@ export default function Page() {
                     type: 'between',
                     notice_type: 'tender'
                 };
+            } else if (userRole === "EXAM_ADMIN") {
+                body = { 
+                    ...body, 
+                    type: 'between',
+                    notice_type: 'exam'
+                };
             }
 
             fetch('/api/notice', {
@@ -73,7 +79,7 @@ export default function Page() {
     }
 
     // Handle authenticated state
-    if (session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ACADEMIC_ADMIN" || session?.user?.role === "DEPT_ADMIN" || session?.user?.role === "TENDER_NOTICE_ADMIN") {
+    if (session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ACADEMIC_ADMIN" || session?.user?.role === "DEPT_ADMIN" || session?.user?.role === "TENDER_NOTICE_ADMIN" || session?.user?.role === "EXAM_ADMIN") {
         return (
             <Layout>
                 <Wrap>

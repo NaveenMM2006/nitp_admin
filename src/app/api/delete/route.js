@@ -52,7 +52,8 @@ export async function POST(request) {
         (session.user.role === 'DEPT_ADMIN' && 
          noticeData.notice_type === 'department' && 
          noticeData.department === session.user.department) ||
-        (session.user.role === 'TENDER_NOTICE_ADMIN' && noticeData.notice_type === 'tender')
+        (session.user.role === 'TENDER_NOTICE_ADMIN' && noticeData.notice_type === 'tender') ||
+        (session.user.role === 'EXAM_ADMIN' && noticeData.notice_type === 'exam')
       
       console.log('Can delete notice:', canDeleteNotice)
       

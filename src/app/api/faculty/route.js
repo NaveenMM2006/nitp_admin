@@ -99,6 +99,7 @@ export async function GET(request) {
           'DEPT_ADMIN': 6,
           'TENDER_NOTICE_ADMIN': 7,
           'CLUB_ADMIN': 8,
+          'EXAM_ADMIN': 9,
         }
 
         let whereConditions = ['u.is_deleted = 0'];
@@ -157,6 +158,7 @@ export async function GET(request) {
               WHEN 6 THEN 'DEPT_ADMIN'
               WHEN 7 THEN 'TENDER_NOTICE_ADMIN'
               WHEN 8 THEN 'CLUB_ADMIN'
+              WHEN 9 THEN 'EXAM_ADMIN'
             END as role_name,
             ${subqueries.join(',\n    ')}
               FROM user u 
