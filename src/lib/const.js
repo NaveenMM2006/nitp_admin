@@ -15,9 +15,9 @@ export const administrationList = new Map([
 export const notice_sub_types = {
   "JOB": [
     ["regularteaching", "Regular Teaching"],
-    ["nonregularteaching", "Non-Regular Teaching"],
+    ["contractual/temporaryfaculty", "Contractual / Temporary Faculty"],
     ["regularnonteaching", "Regular Non-Teaching"],
-    ["nonregularnonteaching", "Non-Regular Non-Teaching"],
+    ["contractual/temporarynonteaching", "Contractual / Temporary Non-Teaching"],
     ["jdrfsrf", "JDRF/SRF"]
   ],
   "ADMISSIONS": [
