@@ -104,7 +104,7 @@ const Notice = ({ detail }) => {
                                 whiteSpace: 'nowrap'
                             }}
                         >
-                            {detail.title}
+                            {detail.title} {detail.additional_title ? `(${detail.additional_title})` : ''}
                         </Typography>
                     </Box>
                 </TableCell>

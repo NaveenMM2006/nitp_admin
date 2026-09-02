@@ -14,6 +14,13 @@ import { useSession } from 'next-auth/react'
 import React, { useEffect, useState } from 'react'
 import { useFacultyData } from '../../../context/FacultyDataContext'
 
+const formatDateForInput = (dateVal) => {
+    if (!dateVal) return ''
+    if (typeof dateVal === 'string' && dateVal.includes('T')) return dateVal.split('T')[0]
+    if (typeof dateVal === 'number') return new Date(dateVal).toISOString().slice(0, 10)
+    return dateVal
+}
+
 export const EditProfile = ({ handleClose, modal, currentProfile, onUpdate }) => {
     const { data: session } = useSession()
     const { updateFacultySection } = useFacultyData()
@@ -24,6 +31,8 @@ export const EditProfile = ({ handleClose, modal, currentProfile, onUpdate }) =>
         ext_no: currentProfile?.ext_no || '',
         category: currentProfile?.category || '',
         gender: currentProfile?.gender || '',
+        date_of_birth: formatDateForInput(currentProfile?.date_of_birth),
+        date_of_joining: formatDateForInput(currentProfile?.date_of_joining),
         linkedin: currentProfile?.linkedin || '',
         google_scholar: currentProfile?.google_scholar || '',
         personal_webpage: currentProfile?.personal_webpage || '',
@@ -40,6 +49,8 @@ export const EditProfile = ({ handleClose, modal, currentProfile, onUpdate }) =>
             ext_no: currentProfile?.ext_no || '',
             category: currentProfile?.category || '',
             gender: currentProfile?.gender || '',
+            date_of_birth: formatDateForInput(currentProfile?.date_of_birth),
+            date_of_joining: formatDateForInput(currentProfile?.date_of_joining),
             linkedin: currentProfile?.linkedin || '',
             google_scholar: currentProfile?.google_scholar || '',
             personal_webpage: currentProfile?.personal_webpage || '',
@@ -63,6 +74,12 @@ export const EditProfile = ({ handleClose, modal, currentProfile, onUpdate }) =>
         setSubmitting(true)
         setError('')
 
+        if (!formData.date_of_birth || !formData.date_of_joining || !formData.category || !formData.gender) {
+            setError('Date of Birth, Date of Joining, Category, and Gender are mandatory fields.')
+            setSubmitting(false)
+            return
+        }
+
         try {
             const response = await fetch('/api/update', {
                 method: 'PUT',
@@ -76,7 +93,10 @@ export const EditProfile = ({ handleClose, modal, currentProfile, onUpdate }) =>
                 }),
             })
 
-            if (!response.ok) throw new Error('Failed to update profile')
+            if (!response.ok) {
+                const resData = await response.json().catch(() => ({}))
+                throw new Error(resData.message || 'Failed to update profile')
+            }
             
             // Update the faculty data context with new profile data
             updateFacultySection('profile', formData)
@@ -126,36 +146,56 @@ export const EditProfile = ({ handleClose, modal, currentProfile, onUpdate }) =>
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid item xs={12} md={6}>
+                            <TextField
+                                fullWidth
+                                type="date"
+                                label="Date of Birth"
+                                name="date_of_birth"
+                                required
+                                InputLabelProps={{ shrink: true }}
+                                value={formData.date_of_birth}
+                                onChange={handleChange}
+                            />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                            <TextField
+                                fullWidth
+                                type="date"
+                                label="Date of Joining"
+                                name="date_of_joining"
+                                required
+                                InputLabelProps={{ shrink: true }}
+                                value={formData.date_of_joining}
+                                onChange={handleChange}
+                            />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
                             <TextField
                                 fullWidth
                                 select
                                 label="Category"
                                 name="category"
+                                required
                                 value={formData.category}
                                 onChange={handleChange}
                             >
-                                <MenuItem value="">
-                                    <em>Not set</em>
-                                </MenuItem>
                                 <MenuItem value="GEN">General</MenuItem>
                                 <MenuItem value="OBC">OBC</MenuItem>
                                 <MenuItem value="SC">SC</MenuItem>
                                 <MenuItem value="ST">ST</MenuItem>
                             </TextField>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid item xs={12} md={6}>
                             <TextField
                                 fullWidth
                                 select
                                 label="Gender"
                                 name="gender"
+                                required
                                 value={formData.gender}
                                 onChange={handleChange}
                             >
-                                <MenuItem value="">
-                                    <em>Not set</em>
-                                </MenuItem>
                                 <MenuItem value="MALE">Male</MenuItem>
                                 <MenuItem value="FEMALE">Female</MenuItem>
                                 <MenuItem value="OTHER">Other</MenuItem>

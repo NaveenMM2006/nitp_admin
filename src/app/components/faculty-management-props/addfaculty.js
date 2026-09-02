@@ -32,7 +32,9 @@ export function AddFaculty({ open, onClose, onSuccess }) {
     research_interest: '',
     academic_responsibility: '',
     is_retired: '0',
-    retirement_date: null   
+    retirement_date: null,
+    date_of_birth: '',
+    date_of_joining: ''
   })
   const [toast, setToast] = useState({
     open: false,
@@ -72,7 +74,8 @@ export function AddFaculty({ open, onClose, onSuccess }) {
         body: JSON.stringify({
           type: 'user',
           ...formData,
-          // email: session?.user?.email
+          date_of_birth: formData.date_of_birth || null,
+          date_of_joining: formData.date_of_joining || null,
         })
       })
 
@@ -90,8 +93,10 @@ export function AddFaculty({ open, onClose, onSuccess }) {
         gender: '',
         ext_no: '',
         research_interest: '',
-        is_retired: false,
-        retirement_date: null
+        is_retired: '0',
+        retirement_date: null,
+        date_of_birth: '',
+        date_of_joining: ''
       })
       setToast({
         open: true,
@@ -243,11 +248,13 @@ export function AddFaculty({ open, onClose, onSuccess }) {
                   fullWidth
                   select
                   label="Category"
-                  required
                   value={formData.category}
                   onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                   variant="outlined"
                 >
+                  <MenuItem value="">
+                    <em>Not set</em>
+                  </MenuItem>
                   <MenuItem value="GEN">General</MenuItem>
                   <MenuItem value="OBC">OBC</MenuItem>
                   <MenuItem value="SC">SC</MenuItem>
@@ -260,15 +267,41 @@ export function AddFaculty({ open, onClose, onSuccess }) {
                   fullWidth
                   select
                   label="Gender"
-                  required
                   value={formData.gender}
                   onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
                   variant="outlined"
                 >
+                  <MenuItem value="">
+                    <em>Not set</em>
+                  </MenuItem>
                   <MenuItem value="MALE">Male</MenuItem>
                   <MenuItem value="FEMALE">Female</MenuItem>
                   <MenuItem value="OTHER">Other</MenuItem>
                 </TextField>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Date of Birth"
+                  InputLabelProps={{ shrink: true }}
+                  value={formData.date_of_birth}
+                  onChange={(e) => setFormData(prev => ({ ...prev, date_of_birth: e.target.value }))}
+                  variant="outlined"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Date of Joining"
+                  InputLabelProps={{ shrink: true }}
+                  value={formData.date_of_joining}
+                  onChange={(e) => setFormData(prev => ({ ...prev, date_of_joining: e.target.value }))}
+                  variant="outlined"
+                />
               </Grid>
               
               <Grid item xs={12}>

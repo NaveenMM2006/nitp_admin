@@ -77,7 +77,7 @@ const ViewDetailsModal = ({ open, handleClose, detail }) => {
             <Box sx={style}>
                 <Box sx={headerStyle}>
                     <Typography id="modal-title" variant="h6" sx={titleStyle}>
-                        {detail.title}
+                        {detail.title} {detail.additional_title ? `(${detail.additional_title})` : ''}
                     </Typography>
                     <IconButton onClick={handleClose} sx={closeButtonStyle}>
                         <CloseIcon />

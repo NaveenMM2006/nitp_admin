@@ -402,6 +402,16 @@ export default function Profilepage() {
                                 <p>Phone: {detail?.profile?.ext_no}</p>
                                 <h4 style={{marginTop: '10px',fontWeight:'bold'}}>Category: {detail?.profile?.category}</h4>
                                 <h4 style={{marginTop: '10px',fontWeight:'bold'}}>Gender: {detail?.profile?.gender}</h4>
+                                {detail?.profile?.date_of_birth && (
+                                    <h4 style={{marginTop: '10px',fontWeight:'bold'}}>
+                                        Date of Birth: {typeof detail.profile.date_of_birth === 'string' ? detail.profile.date_of_birth.split('T')[0] : new Date(detail.profile.date_of_birth).toISOString().split('T')[0]}
+                                    </h4>
+                                )}
+                                {detail?.profile?.date_of_joining && (
+                                    <h4 style={{marginTop: '10px',fontWeight:'bold'}}>
+                                        Date of Joining: {typeof detail.profile.date_of_joining === 'string' ? detail.profile.date_of_joining.split('T')[0] : new Date(detail.profile.date_of_joining).toISOString().split('T')[0]}
+                                    </h4>
+                                )}
 
                                 <h4 style={{marginTop: '10px',fontWeight:'bold'}}>Social Media & Academic Links:</h4>
                                 {detail?.profile?.linkedin && (

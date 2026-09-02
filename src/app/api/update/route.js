@@ -34,6 +34,17 @@ export async function PUT(request) {
         );
       }
 
+      // Validate mandatory fields for faculty profile updates
+      if (
+        session.user.role !== "SUPER_ADMIN" &&
+        (!params.date_of_birth || !params.date_of_joining || !params.category || !params.gender)
+      ) {
+        return NextResponse.json(
+          { message: "Date of Birth, Date of Joining, Category, and Gender are mandatory." },
+          { status: 400 }
+        );
+      }
+
       let queryParts = [];
       let updateValues = [];
 
@@ -48,6 +59,8 @@ export async function PUT(request) {
         "ext_no",
         "category",
         "gender",
+        "date_of_birth",
+        "date_of_joining",
         "linkedin",
         "google_scholar",
         "personal_webpage",
@@ -55,22 +68,26 @@ export async function PUT(request) {
         "vidwan",
         "orcid",
       ];
-  fields.forEach((field) => {
-    if (params[field] !== undefined) {
-      let value = params[field];
+      fields.forEach((field) => {
+        if (params[field] !== undefined) {
+          let value = params[field];
 
-      if (typeof value === "string" && value.trim() === "") {
-        value = null;
-      }
+          if (typeof value === "string" && value.trim() === "") {
+            value = null;
+          }
 
-      if (value === undefined) {
-        value = null;
-      }
+          if (value === undefined) {
+            value = null;
+          }
 
-      queryParts.push(`${field} = ?`);
-      updateValues.push(value);
-    }
-  });
+          if (value && (field === "date_of_birth" || field === "date_of_joining")) {
+            value = new Date(value).toISOString().slice(0, 10);
+          }
+
+          queryParts.push(`${field} = ?`);
+          updateValues.push(value);
+        }
+      });
       // Add email as the last parameter
       updateValues.push(params.email);
 
@@ -79,6 +96,7 @@ export async function PUT(request) {
         updateValues,
       );
 
+      await invalidateProfileIfNeeded(type, params);
       return NextResponse.json(result);
     }
     // Notice updates - Super Admin, Academic Admin, and Department Admin access
@@ -161,7 +179,8 @@ export async function PUT(request) {
             updatedBy = ?,
             notice_type = ?,
             notice_sub_type = ?,
-            department = ?
+            department = ?,
+            additional_title = ?
         WHERE id = ?`,
         [
             params.data.title,
@@ -176,6 +195,7 @@ export async function PUT(request) {
             params.data.notice_type || null,
             params.data.notice_sub_type||null,
             params.data.department || null,
+            params.data.additional_title?.trim()||null,
             params.data.id
         ]
       )   
@@ -331,39 +351,51 @@ export async function PUT(request) {
                 academic_responsibility,
                 is_retired,
                 retirement_date,
+                date_of_birth,
+                date_of_joining,
               } = params;
 
-            // Format retirement_date for MySQL or set to NULL
+            // Format dates for MySQL or set to NULL
             const formattedRetirementDate = retirement_date
               ? new Date(retirement_date).toISOString().slice(0, 10)
+              : null;
+            const formattedDOB = date_of_birth
+              ? new Date(date_of_birth).toISOString().slice(0, 10)
+              : null;
+            const formattedDOJ = date_of_joining
+              ? new Date(date_of_joining).toISOString().slice(0, 10)
               : null;
 
             await query(
               `UPDATE user SET 
                 name = ?,
                 department = ?,
-                  designation = ?,
-                  role = ?,
-                  category = ?,
-                    gender = ?,
+                designation = ?,
+                role = ?,
+                category = ?,
+                gender = ?,
                 ext_no = ?,
                 research_interest = ?,
                 academic_responsibility = ?,
                 is_retired = ?,
-                retirement_date = ?
+                retirement_date = ?,
+                date_of_birth = ?,
+                date_of_joining = ?
               WHERE email = ?`,
               [
                 name,
                 department,
                 designation,
-                  role,
-                  category || null,
-                  gender || null,
-                  ext_no,
+                role,
+                category || null,
+                gender || null,
+                ext_no,
                 research_interest,
                 academic_responsibility || null,
                 is_retired,
                 formattedRetirementDate,
+                formattedDOB,
+                formattedDOJ,
                 email
               ]
             )

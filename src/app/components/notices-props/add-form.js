@@ -54,7 +54,8 @@ export const AddForm = ({ handleClose, modal }) => {
         important: false,
         department: session?.user?.role === 'DEPT_ADMIN' ? session.user.department : null,
         isDept: session?.user?.role === 'DEPT_ADMIN' ? 1 : 0,
-        notice_sub_type: ''
+        notice_sub_type: '',
+        additional_title: ''
     })
 
     const [new_attach, setNew_attach] = useState([])
@@ -108,7 +109,8 @@ export const AddForm = ({ handleClose, modal }) => {
                 important: content.important,
                 department: content.department || null,
                 isDept: content.type === 'department' ? 1 : 0,
-                notice_sub_type: content.notice_sub_type ? content.notice_sub_type: undefined
+                notice_sub_type: content.notice_sub_type ? content.notice_sub_type: undefined,
+                additional_title: content.additional_title?.trim() || null
             }
 
             // Remove notice_sub_type if not needed
@@ -208,6 +210,18 @@ export const AddForm = ({ handleClose, modal }) => {
                             sx={{ mb: 2 }}
                             variant="outlined"
                             placeholder="Enter notice title..."
+                        />
+                        <TextField
+                            margin="dense"
+                            label="Additional Title (Optional)"
+                            name="additional_title"
+                            type="text"
+                            fullWidth
+                            value={content.additional_title}
+                            onChange={handleChange}
+                            sx={{ mb: 2 }}
+                            variant="outlined"
+                            placeholder="Enter additional title (optional)..."
                         />
                         
                         <Grid container spacing={2} sx={{ mb: 2 }}>
