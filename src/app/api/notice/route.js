@@ -6,7 +6,8 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type")?.trim();
-    const noticeSubType = searchParams.get("notice_sub_type")?.trim().toUpperCase();
+    const rawNoticeSubType = searchParams.get("notice_sub_type")?.trim();
+    const noticeSubType = rawNoticeSubType?.toUpperCase();
     const page = Math.max(1, parseInt(searchParams.get('page')) || 1);
     const limit = Math.min(50, parseInt(searchParams.get('limit')) || 20);
     const offset = (page - 1) * limit;
@@ -68,6 +69,18 @@ export async function GET(request) {
         const jobCount = await query(`SELECT COUNT(*) as count FROM notices WHERE notice_type = 'facultystaffjob'`);
         total = Number(jobCount[0].count);
         results = await query(`SELECT * FROM notices WHERE notice_type = 'facultystaffjob' ORDER BY timestamp DESC LIMIT ${limit} OFFSET ${offset}`);
+        break;
+
+      case "admissions":
+        if (rawNoticeSubType) {
+          const countRes = await query(`SELECT COUNT(*) as count FROM notices WHERE notice_type = 'admissions' AND notice_sub_type = ? AND isVisible = 1`, [rawNoticeSubType]);
+          total = Number(countRes[0].count);
+          results = await query(`SELECT * FROM notices WHERE notice_type = 'admissions' AND notice_sub_type = ? AND isVisible = 1 ORDER BY timestamp DESC LIMIT ${limit} OFFSET ${offset}`, [rawNoticeSubType]);
+        } else {
+          const countRes = await query(`SELECT COUNT(*) as count FROM notices WHERE notice_type = 'admissions' AND isVisible = 1`);
+          total = Number(countRes[0].count);
+          results = await query(`SELECT * FROM notices WHERE notice_type = 'admissions' AND isVisible = 1 ORDER BY timestamp DESC LIMIT ${limit} OFFSET ${offset}`);
+        }
         break;
 
       default:
