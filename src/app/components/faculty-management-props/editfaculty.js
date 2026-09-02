@@ -42,6 +42,8 @@ export function EditFaculty({ open, faculty, onClose, onSuccess, onDelete }) {
     academic_responsibility: "",
     is_retired: "0",
     retirement_date: null,
+    date_of_birth: "",
+    date_of_joining: "",
   });
   const [dynamicDesignations, setDynamicDesignations] =
     useState(officerDesignations);
@@ -88,6 +90,18 @@ export function EditFaculty({ open, faculty, onClose, onSuccess, onDelete }) {
           if (typeof rd === 'string' && rd.includes('T')) return rd.split('T')[0];
           return rd;
         })(faculty.profile.retirement_date),
+        date_of_birth: (function(d) {
+          if (!d) return "";
+          if (typeof d === 'number') return new Date(d).toISOString().slice(0,10);
+          if (typeof d === 'string' && d.includes('T')) return d.split('T')[0];
+          return d;
+        })(faculty.profile.date_of_birth),
+        date_of_joining: (function(d) {
+          if (!d) return "";
+          if (typeof d === 'number') return new Date(d).toISOString().slice(0,10);
+          if (typeof d === 'string' && d.includes('T')) return d.split('T')[0];
+          return d;
+        })(faculty.profile.date_of_joining),
       });
     }
   }, [faculty]);
@@ -330,13 +344,15 @@ export function EditFaculty({ open, faculty, onClose, onSuccess, onDelete }) {
                     fullWidth
                     select
                     label="Category"
-                    required
                     value={formData.category}
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, category: e.target.value }))
                     }
                     variant="outlined"
                   >
+                    <MenuItem value="">
+                      <em>Not set</em>
+                    </MenuItem>
                     <MenuItem value="GEN">General</MenuItem>
                     <MenuItem value="OBC">OBC</MenuItem>
                     <MenuItem value="SC">SC</MenuItem>
@@ -349,17 +365,47 @@ export function EditFaculty({ open, faculty, onClose, onSuccess, onDelete }) {
                     fullWidth
                     select
                     label="Gender"
-                    required
                     value={formData.gender}
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, gender: e.target.value }))
                     }
                     variant="outlined"
                   >
+                    <MenuItem value="">
+                      <em>Not set</em>
+                    </MenuItem>
                     <MenuItem value="MALE">Male</MenuItem>
                     <MenuItem value="FEMALE">Female</MenuItem>
                     <MenuItem value="OTHER">Other</MenuItem>
                   </TextField>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Date of Birth"
+                    InputLabelProps={{ shrink: true }}
+                    value={formData.date_of_birth || ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, date_of_birth: e.target.value }))
+                    }
+                    variant="outlined"
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Date of Joining"
+                    InputLabelProps={{ shrink: true }}
+                    value={formData.date_of_joining || ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, date_of_joining: e.target.value }))
+                    }
+                    variant="outlined"
+                  />
                 </Grid>
 
                 <Grid item xs={12}>

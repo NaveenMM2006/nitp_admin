@@ -67,8 +67,8 @@ export async function POST(request) {
       const noticeResult = await query(
         `INSERT INTO notices(
     id, title, timestamp, openDate, closeDate, important, isVisible, attachments, email, 
-    isDept, notice_link, notice_type, updatedBy, updatedAt, department,notice_sub_type
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`,
+    isDept, notice_link, notice_type, updatedBy, updatedAt, department, notice_sub_type, additional_title
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   [
     params.data.id,
     params.data.title,
@@ -82,9 +82,11 @@ export async function POST(request) {
     params.data.isDept || 0,
     params.data.notice_link || null,
     params.data.notice_type || null,
-    session.user.email,    new Date().getTime(),
+    session.user.email,
+    new Date().getTime(),
     params.data.department || null,
-    params.data.notice_sub_type?.trim()?.toUpperCase()||null
+    params.data.notice_sub_type?.trim()?.toUpperCase()||null,
+    params.data.additional_title?.trim()||null
   ]
       )
       await invalidateProfileIfNeeded(type, params);
@@ -96,8 +98,10 @@ export async function POST(request) {
       console.log("Inside user management")
       switch (type) {
         case 'user':
+          const formattedDOB = params.date_of_birth ? new Date(params.date_of_birth).toISOString().slice(0, 10) : null;
+          const formattedDOJ = params.date_of_joining ? new Date(params.date_of_joining).toISOString().slice(0, 10) : null;
           const userResult = await query(
-            `INSERT INTO user(name, email, role, category, gender, department, designation, ext_no, research_interest, academic_responsibility, is_retired, retirement_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO user(name, email, role, category, gender, department, designation, ext_no, research_interest, academic_responsibility, is_retired, retirement_date, date_of_birth, date_of_joining) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               params.name,
               params.email,
@@ -110,7 +114,9 @@ export async function POST(request) {
               params.research_interest,
               params.academic_responsibility || null,
               params.is_retired || false,
-              params.retirement_date || null
+              params.retirement_date || null,
+              formattedDOB,
+              formattedDOJ
             ]
           )
           await invalidateProfileIfNeeded(type, params);

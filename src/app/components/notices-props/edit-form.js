@@ -74,7 +74,8 @@ export const EditForm = ({ data, handleClose, modal }) => {
         isDept: data.isDept || 0,
         email: data?.email || null,
         // Support notice sub types in content state (default or predefined)
-        notice_sub_type: data.notice_sub_type || ''
+        notice_sub_type: data.notice_sub_type || '',
+        additional_title: data.additional_title || ''
     })
 
     const [verifyDelete, setVerifyDelete] = useState(false)
@@ -156,7 +157,8 @@ export const EditForm = ({ data, handleClose, modal }) => {
                 deleteArray: deleteArray.current,
                 important: content.important,
                 department: content.department || null,
-                isDept: content.type === 'department' ? 1 : 0
+                isDept: content.type === 'department' ? 1 : 0,
+                additional_title: content.additional_title?.trim() || null
             }
 
             const result = await fetch('/api/update', {
@@ -244,6 +246,18 @@ export const EditForm = ({ data, handleClose, modal }) => {
                             onChange={handleChange}
                             sx={{ mb: 2 }}
                             variant="outlined"
+                        />
+                        <TextField
+                            margin="dense"
+                            label="Additional Title (Optional)"
+                            name="additional_title"
+                            type="text"
+                            fullWidth
+                            value={content.additional_title}
+                            onChange={handleChange}
+                            sx={{ mb: 2 }}
+                            variant="outlined"
+                            placeholder="Enter additional title (optional)..."
                         />
                         
                         <Grid container spacing={2} sx={{ mb: 2 }}>
