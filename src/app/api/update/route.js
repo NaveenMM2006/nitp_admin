@@ -50,6 +50,29 @@ export async function PUT(request) {
         }
       }
 
+      // Check if user is an officer (role 4) or super admin
+      let isOfficer =
+        session.user.role === "SUPER_ADMIN" ||
+        session.user.role === "OFFICER" ||
+        session.user.numericRole === 4;
+
+      if (!isOfficer) {
+        const userRow = await query(
+          `SELECT role, department FROM user WHERE email = ?`,
+          [params.email]
+        );
+        if (userRow.length > 0) {
+          const roleNum = Number(userRow[0].role);
+          if (
+            roleNum === 4 ||
+            userRow[0].department === "Officers" ||
+            userRow[0].department === "officers"
+          ) {
+            isOfficer = true;
+          }
+        }
+      }
+
       let queryParts = [];
       let updateValues = [];
 
@@ -73,6 +96,11 @@ export async function PUT(request) {
         "vidwan",
         "orcid",
       ];
+
+      if (isOfficer) {
+        fields.push("department");
+      }
+
       fields.forEach((field) => {
         if (params[field] !== undefined) {
           let value = params[field];
