@@ -188,12 +188,15 @@ export async function PUT(request) {
       if (params.data.notice_type) {
         const noticeTypeKey = params.data.notice_type.toUpperCase();
         if (notice_sub_types.hasOwnProperty(noticeTypeKey)) {
-          if (
-            !params.data.notice_sub_type ||
-            !notice_sub_types[noticeTypeKey].some(
-            ([_,upKey]) => upKey===params.data.notice_sub_type,
-            )
-          ) {
+          const matchedSubType = params.data.notice_sub_type
+            ? notice_sub_types[noticeTypeKey].find(
+                ([id, label]) =>
+                  id.toLowerCase() === params.data.notice_sub_type.trim().toLowerCase() ||
+                  label.toLowerCase() === params.data.notice_sub_type.trim().toLowerCase()
+              )
+            : null;
+
+          if (!params.data.notice_sub_type || !matchedSubType) {
             return NextResponse.json(
               {
                 message:
@@ -202,6 +205,12 @@ export async function PUT(request) {
               },
               { status: 400 },
             );
+          }
+
+          if (params.data.notice_type.toLowerCase() === "admissions") {
+            params.data.notice_sub_type = matchedSubType[0];
+          } else {
+            params.data.notice_sub_type = matchedSubType[0].toUpperCase();
           }
         }
       }

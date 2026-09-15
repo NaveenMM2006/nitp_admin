@@ -100,7 +100,7 @@ export const EditForm = ({ data, handleClose, modal }) => {
 
     const [new_attach, setNew_attach] = useState([]);
 
-    // If selected notice type or predefined data has sub types, this returns the subtypes or null/undefined (Array or undefined).
+    // If selected notice type or predefined data has sub types, this returns the subtypes or null/undefined (Array of [id, label] or undefined).
     const currentNoticeSubTypes = useMemo(() => {
         if (!content.type) return undefined;
      
@@ -111,11 +111,19 @@ export const EditForm = ({ data, handleClose, modal }) => {
         }
         const rawSubTypes = notice_sub_types[key];
         if (Array.isArray(rawSubTypes)) {
-           
-            return rawSubTypes.map(arr => arr[1]);
+            return rawSubTypes;
         }
         return undefined;
     }, [content.type]);
+
+    const selectedSubTypeValue = useMemo(() => {
+        if (!content.notice_sub_type || !currentNoticeSubTypes) return '';
+        const target = String(content.notice_sub_type).trim().toLowerCase();
+        const matched = currentNoticeSubTypes.find(
+            ([id, label]) => id.toLowerCase() === target || label.toLowerCase() === target
+        );
+        return matched ? matched[0] : content.notice_sub_type;
+    }, [content.notice_sub_type, currentNoticeSubTypes]);
 
     const handleChange = (e) => {
         const { name, type, value, checked } = e.target;
@@ -149,7 +157,7 @@ export const EditForm = ({ data, handleClose, modal }) => {
                 openDate: new Date(content.openDate).getTime(),
                 closeDate: new Date(content.closeDate).getTime(),
                 notice_type: content.type,
-                notice_sub_type: currentNoticeSubTypes?(content.notice_sub_type || undefined):undefined,
+                notice_sub_type: currentNoticeSubTypes ? (selectedSubTypeValue || content.notice_sub_type || undefined) : undefined,
                 category: content.category,
                 updatedAt: Date.now(),
                 updatedBy: session.user.email,
@@ -389,7 +397,7 @@ export const EditForm = ({ data, handleClose, modal }) => {
                                         <InputLabel>Sub-Type</InputLabel>
                                         <Select
                                             name="notice_sub_type"
-                                            value={content.notice_sub_type || ""}
+                                            value={selectedSubTypeValue}
                                             onChange={handleChange}
                                             label="Sub-Type"
                                             required
@@ -397,8 +405,8 @@ export const EditForm = ({ data, handleClose, modal }) => {
                                             <MenuItem value="">
                                                 <em>Select Sub-Type</em>
                                             </MenuItem>
-                                            {currentNoticeSubTypes.map(subType =>
-                                                <MenuItem key={subType} value={subType}>{subType}</MenuItem>
+                                            {currentNoticeSubTypes.map(([id, label]) =>
+                                                <MenuItem key={id} value={id}>{label}</MenuItem>
                                             )}
                                         </Select>
                                     </FormControl>

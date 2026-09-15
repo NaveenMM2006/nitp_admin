@@ -34,8 +34,7 @@ const Filter = ({ type, setEntries }) => {
         }
         const rawSubTypes = notice_sub_types[key];
         if (Array.isArray(rawSubTypes)) {
-           
-            return rawSubTypes.map(arr => arr[1]);
+            return rawSubTypes;
         }
         return undefined;
     }, [range.notice_type]); 
@@ -161,11 +160,11 @@ const Filter = ({ type, setEntries }) => {
                                         onChange={handleChange}
                                         input={<Input />}
                                     >
-                                        {currentNoticeSubTypes.map((value, idx) => (
-                                            <MenuItem key={`${value}${idx}`} value={value}>
-                                                {value}
-                                            </MenuItem>
-                                        ))}
+                                         {currentNoticeSubTypes.map(([id, label]) => (
+                                             <MenuItem key={id} value={id}>
+                                                 {label}
+                                             </MenuItem>
+                                         ))}
                                     </Select>
                                 </FormControl>
                             )}

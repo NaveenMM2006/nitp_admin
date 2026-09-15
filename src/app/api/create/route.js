@@ -44,14 +44,17 @@ export async function POST(request) {
         )
       }
 
-      if (params.data.notice_type ) {
+      if (params.data.notice_type) {
         const noticeTypeKey = params.data.notice_type.toUpperCase();
         if (notice_sub_types.hasOwnProperty(noticeTypeKey)) {
-          
-          const matchedSubType = notice_sub_types[noticeTypeKey].find(
-            ([id, label]) => id === params.data.notice_sub_type || label === params.data.notice_sub_type
-          );
-          
+          const matchedSubType = params.data.notice_sub_type
+            ? notice_sub_types[noticeTypeKey].find(
+                ([id, label]) =>
+                  id.toLowerCase() === params.data.notice_sub_type.trim().toLowerCase() ||
+                  label.toLowerCase() === params.data.notice_sub_type.trim().toLowerCase()
+              )
+            : null;
+
           if (!params.data.notice_sub_type || !matchedSubType) {
             return NextResponse.json(
               {
@@ -62,9 +65,11 @@ export async function POST(request) {
               { status: 400 },
             );
           }
-          
+
           if (params.data.notice_type.toLowerCase() === "admissions") {
             params.data.notice_sub_type = matchedSubType[0];
+          } else {
+            params.data.notice_sub_type = matchedSubType[0].toUpperCase();
           }
         }
       }
