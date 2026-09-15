@@ -210,7 +210,7 @@ export async function PUT(request) {
           if (params.data.notice_type.toLowerCase() === "admissions") {
             params.data.notice_sub_type = matchedSubType[0];
           } else {
-            params.data.notice_sub_type = matchedSubType[0].toUpperCase();
+            params.data.notice_sub_type = matchedSubType[1];
           }
         }
       }

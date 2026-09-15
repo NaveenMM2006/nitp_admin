@@ -122,8 +122,11 @@ export const EditForm = ({ data, handleClose, modal }) => {
         const matched = currentNoticeSubTypes.find(
             ([id, label]) => id.toLowerCase() === target || label.toLowerCase() === target
         );
-        return matched ? matched[0] : content.notice_sub_type;
-    }, [content.notice_sub_type, currentNoticeSubTypes]);
+        if (matched) {
+            return content.type?.toLowerCase() === 'admissions' ? matched[0] : matched[1];
+        }
+        return content.notice_sub_type;
+    }, [content.notice_sub_type, currentNoticeSubTypes, content.type]);
 
     const handleChange = (e) => {
         const { name, type, value, checked } = e.target;
@@ -405,9 +408,10 @@ export const EditForm = ({ data, handleClose, modal }) => {
                                             <MenuItem value="">
                                                 <em>Select Sub-Type</em>
                                             </MenuItem>
-                                            {currentNoticeSubTypes.map(([id, label]) =>
-                                                <MenuItem key={id} value={id}>{label}</MenuItem>
-                                            )}
+                                            {currentNoticeSubTypes.map(([id, label]) => {
+                                                const val = content.type?.toLowerCase() === 'admissions' ? id : label;
+                                                return <MenuItem key={id} value={val}>{label}</MenuItem>;
+                                            })}
                                         </Select>
                                     </FormControl>
                                 </Grid>

@@ -160,11 +160,14 @@ const Filter = ({ type, setEntries }) => {
                                         onChange={handleChange}
                                         input={<Input />}
                                     >
-                                         {currentNoticeSubTypes.map(([id, label]) => (
-                                             <MenuItem key={id} value={id}>
-                                                 {label}
-                                             </MenuItem>
-                                         ))}
+                                         {currentNoticeSubTypes.map(([id, label]) => {
+                                             const val = range.notice_type?.toLowerCase() === 'admissions' ? id : label;
+                                             return (
+                                                 <MenuItem key={id} value={val}>
+                                                     {label}
+                                                 </MenuItem>
+                                             );
+                                         })}
                                     </Select>
                                 </FormControl>
                             )}
