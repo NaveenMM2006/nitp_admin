@@ -50,6 +50,29 @@ export async function PUT(request) {
         }
       }
 
+      // Check if user is an officer (role 4) or super admin
+      let isOfficer =
+        session.user.role === "SUPER_ADMIN" ||
+        session.user.role === "OFFICER" ||
+        session.user.numericRole === 4;
+
+      if (!isOfficer) {
+        const userRow = await query(
+          `SELECT role, department FROM user WHERE email = ?`,
+          [params.email]
+        );
+        if (userRow.length > 0) {
+          const roleNum = Number(userRow[0].role);
+          if (
+            roleNum === 4 ||
+            userRow[0].department === "Officers" ||
+            userRow[0].department === "officers"
+          ) {
+            isOfficer = true;
+          }
+        }
+      }
+
       let queryParts = [];
       let updateValues = [];
 
@@ -73,6 +96,11 @@ export async function PUT(request) {
         "vidwan",
         "orcid",
       ];
+
+      if (isOfficer) {
+        fields.push("department");
+      }
+
       fields.forEach((field) => {
         if (params[field] !== undefined) {
           let value = params[field];
@@ -160,12 +188,15 @@ export async function PUT(request) {
       if (params.data.notice_type) {
         const noticeTypeKey = params.data.notice_type.toUpperCase();
         if (notice_sub_types.hasOwnProperty(noticeTypeKey)) {
-          if (
-            !params.data.notice_sub_type ||
-            !notice_sub_types[noticeTypeKey].some(
-            ([_,upKey]) => upKey===params.data.notice_sub_type,
-            )
-          ) {
+          const matchedSubType = params.data.notice_sub_type
+            ? notice_sub_types[noticeTypeKey].find(
+                ([id, label]) =>
+                  id.toLowerCase() === params.data.notice_sub_type.trim().toLowerCase() ||
+                  label.toLowerCase() === params.data.notice_sub_type.trim().toLowerCase()
+              )
+            : null;
+
+          if (!params.data.notice_sub_type || !matchedSubType) {
             return NextResponse.json(
               {
                 message:
@@ -174,6 +205,12 @@ export async function PUT(request) {
               },
               { status: 400 },
             );
+          }
+
+          if (params.data.notice_type.toLowerCase() === "admissions") {
+            params.data.notice_sub_type = matchedSubType[0];
+          } else {
+            params.data.notice_sub_type = matchedSubType[0].toUpperCase();
           }
         }
       }

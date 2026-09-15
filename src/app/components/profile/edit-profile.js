@@ -13,6 +13,7 @@ import {
 import { useSession } from 'next-auth/react'
 import React, { useEffect, useState } from 'react'
 import { useFacultyData } from '../../../context/FacultyDataContext'
+import { depList } from '@/lib/const'
 
 const formatDateForInput = (dateVal) => {
     if (!dateVal) return ''
@@ -21,12 +22,29 @@ const formatDateForInput = (dateVal) => {
     return dateVal
 }
 
+const getInitialDepartment = (dept) => {
+    if (!dept) return ''
+    return depList.get(dept.toLowerCase()) || dept
+}
+
 export const EditProfile = ({ handleClose, modal, currentProfile, onUpdate }) => {
     const { data: session } = useSession()
     const { updateFacultySection } = useFacultyData()
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState('')
+
+    const isOfficer =
+        session?.user?.role === 'OFFICER' ||
+        session?.user?.numericRole === 4 ||
+        currentProfile?.role === 4 ||
+        currentProfile?.role === '4' ||
+        currentProfile?.role === 'OFFICER' ||
+        currentProfile?.department === 'Officers' ||
+        currentProfile?.department === 'officers' ||
+        session?.user?.role === 'SUPER_ADMIN';
+
     const [formData, setFormData] = useState({
+        department: getInitialDepartment(currentProfile?.department),
         research_interest: currentProfile?.research_interest || '',
         ext_no: currentProfile?.ext_no || '',
         category: currentProfile?.category || '',
@@ -45,6 +63,7 @@ export const EditProfile = ({ handleClose, modal, currentProfile, onUpdate }) =>
         if (!modal) return
 
         setFormData({
+            department: getInitialDepartment(currentProfile?.department),
             research_interest: currentProfile?.research_interest || '',
             ext_no: currentProfile?.ext_no || '',
             category: currentProfile?.category || '',
@@ -99,11 +118,12 @@ export const EditProfile = ({ handleClose, modal, currentProfile, onUpdate }) =>
             }
             
             // Update the faculty data context with new profile data
-            updateFacultySection('profile', formData)
+            const updatedProfile = { ...currentProfile, ...formData }
+            updateFacultySection('profile', updatedProfile)
             
             // Update parent component if callback provided
             if (onUpdate) {
-                onUpdate(formData)
+                onUpdate(updatedProfile)
             }
 
             handleClose()
@@ -126,6 +146,24 @@ export const EditProfile = ({ handleClose, modal, currentProfile, onUpdate }) =>
                         </Alert>
                     )}
                     <Grid container spacing={2} sx={{ mt: 1 }}>
+                        {isOfficer && (
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    select
+                                    label="Department"
+                                    name="department"
+                                    value={formData.department}
+                                    onChange={handleChange}
+                                >
+                                    {[...depList].map(([key, value]) => (
+                                        <MenuItem key={key} value={value}>
+                                            {value}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            </Grid>
+                        )}
                         <Grid item xs={12}>
                             <TextField
                                 fullWidth

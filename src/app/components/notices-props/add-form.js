@@ -328,8 +328,8 @@ export const AddForm = ({ handleClose, modal }) => {
                                             label="Sub Notice Type"
                                             required
                                         >
-                                            {availableSubTypes.map(([displayName, upKey]) => (
-                                                <MenuItem key={upKey} value={upKey}>{upKey}</MenuItem>
+                                            {availableSubTypes.map(([id, label]) => (
+                                                <MenuItem key={id} value={id}>{label}</MenuItem>
                                             ))}
                                         </Select>
                                     </FormControl>
