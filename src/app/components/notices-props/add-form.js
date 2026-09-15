@@ -328,9 +328,10 @@ export const AddForm = ({ handleClose, modal }) => {
                                             label="Sub Notice Type"
                                             required
                                         >
-                                            {availableSubTypes.map(([id, label]) => (
-                                                <MenuItem key={id} value={id}>{label}</MenuItem>
-                                            ))}
+                                            {availableSubTypes.map(([id, label]) => {
+                                                const val = content.type?.toLowerCase() === 'admissions' ? id : label;
+                                                return <MenuItem key={id} value={val}>{label}</MenuItem>;
+                                            })}
                                         </Select>
                                     </FormControl>
                                 </Grid>

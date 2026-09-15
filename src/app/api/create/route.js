@@ -69,7 +69,7 @@ export async function POST(request) {
           if (params.data.notice_type.toLowerCase() === "admissions") {
             params.data.notice_sub_type = matchedSubType[0];
           } else {
-            params.data.notice_sub_type = matchedSubType[0].toUpperCase();
+            params.data.notice_sub_type = matchedSubType[1];
           }
         }
       }
@@ -95,9 +95,7 @@ export async function POST(request) {
     session.user.email,
     new Date().getTime(),
     params.data.department || null,
-    params.data.notice_type?.toLowerCase() === "admissions" 
-      ? params.data.notice_sub_type?.trim() || null
-      : params.data.notice_sub_type?.trim()?.toUpperCase() || null,
+    params.data.notice_sub_type?.trim() || null,
     params.data.additional_title?.trim() || null
   ]
       )
