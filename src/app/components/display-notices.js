@@ -19,6 +19,7 @@ import {
     Visibility as VisibilityIcon,
     Delete as DeleteIcon,
     Star as StarIcon,
+    FiberNew as FiberNewIcon,
     Description as DescriptionIcon,
     AttachFile as AttachFileIcon
 } from '@mui/icons-material'
@@ -86,12 +87,23 @@ const Notice = ({ detail }) => {
             <TableRow sx={{ '&:hover': { backgroundColor: '#f5f5f5' } }}>
                 <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {detail.important && (
+                        {Boolean(detail.important) && (
                             <Chip
                                 icon={<StarIcon />}
                                 label="Important"
                                 color="error"
                                 size="small"
+                            />
+                        )}
+                        {Boolean(detail.is_new || detail.new) && (
+                            <Chip
+                                label="New"
+                                size="small"
+                                sx={{
+                                    backgroundColor: '#00796b',
+                                    color: '#ffffff',
+                                    fontWeight: 600
+                                }}
                             />
                         )}
                         <Typography 
@@ -124,11 +136,11 @@ const Notice = ({ detail }) => {
                     </Typography>
                 </TableCell>
                 <TableCell>
-                    {detail.attachments?.length > 0 ? (
+                    {detail.attachments?.filter(att => Boolean(att?.url))?.length > 0 ? (
                         <Box display="flex" alignItems="center">
                             <AttachFileIcon fontSize="small" color="action" />
                             <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-                                {detail.attachments.length}
+                                {detail.attachments.filter(att => Boolean(att?.url)).length}
                             </Typography>
                         </Box>
                     ) : (

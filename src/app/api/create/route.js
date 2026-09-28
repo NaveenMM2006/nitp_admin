@@ -76,9 +76,9 @@ export async function POST(request) {
 
       const noticeResult = await query(
         `INSERT INTO notices(
-    id, title, timestamp, openDate, closeDate, important, isVisible, attachments, email, 
+    id, title, timestamp, openDate, closeDate, important, is_new, isVisible, attachments, email, 
     isDept, notice_link, notice_type, updatedBy, updatedAt, department, notice_sub_type, additional_title
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   [
     params.data.id,
     params.data.title,
@@ -86,6 +86,7 @@ export async function POST(request) {
     params.data.openDate,
     params.data.closeDate,
     params.data.important || 0,
+    params.data.is_new || params.data.new || 0,
     params.data.isVisible === undefined ? 1 : Number(params.data.isVisible),
     JSON.stringify(params.data.attachments),
     params.data.email,
