@@ -41,11 +41,43 @@ function buildClause(emailCol, yearExpr, dept, yearFilter) {
   return { join, where, params }
 }
 
+function buildProjectCountClause(collabTable, collabIdCol, alias, dept, yearFilter) {
+  const conditions = []
+  const params = []
+  let join = ''
+
+  if (dept) {
+    join = `
+      LEFT JOIN ${collabTable} col ON ${alias}.id = col.${collabIdCol}
+      LEFT JOIN user u1 ON u1.email = ${alias}.email
+      LEFT JOIN user u2 ON u2.email = col.email
+    `
+    conditions.push('(u1.department = ? OR u2.department = ?)')
+    params.push(dept, dept)
+  }
+
+  if (yearFilter) {
+    conditions.push(`YEAR(${alias}.start_date) BETWEEN ? AND ?`)
+    params.push(yearFilter.from, yearFilter.to)
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  return { join, where, params }
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
 
-    const type = searchParams.get('type')
+    const typeParam = searchParams.get('type')
+    const type = typeParam || 'all'
+
+    if (type !== 'all' && !depList.has(type)) {
+      return NextResponse.json({ message: 'Invalid type parameter' }, { status: 400 })
+    }
+
+    const dept = depList.has(type) ? depList.get(type) : null
+
     const page = Math.max(1, parseInt(searchParams.get('page')) || 1)
     const limit = Math.max(1, Math.min(50, parseInt(searchParams.get('limit')) || 10))
     const offset = (page - 1) * limit
@@ -248,60 +280,90 @@ export async function GET(request) {
       const jour = buildClause('jp.email', YEAR_EXPR.journal, dept, yearFilter)
       const chap = buildClause('bc.email', YEAR_EXPR.book_chapter, dept, yearFilter)
       const text = buildClause('t.email', YEAR_EXPR.textbook, dept, yearFilter)
+      const sp = buildProjectCountClause('sponsored_projects_collaborater', 'sponsored_project_id', 'sp', dept, yearFilter)
+      const cp = buildProjectCountClause('consultancy_projects_collaborater', 'consultancy_projects_id', 'cp', dept, yearFilter)
 
-      const params = [...conf.params, ...jour.params, ...chap.params, ...text.params]
+      const params = [
+        ...conf.params,
+        ...jour.params,
+        ...chap.params,
+        ...text.params,
+        ...sp.params,
+        ...cp.params,
+      ]
 
       const sql = `
         SELECT
-          (SELECT COUNT(*) FROM conference_papers cp ${conf.join} ${conf.where}) +
-          (SELECT COUNT(*) FROM journal_papers jp ${jour.join} ${jour.where}) +
-          (SELECT COUNT(*) FROM book_chapters bc ${chap.join} ${chap.where}) +
-          (SELECT COUNT(*) FROM textbooks t ${text.join} ${text.where}) AS count
+          (SELECT COUNT(*) FROM conference_papers cp ${conf.join} ${conf.where}) AS conference_papers,
+          (SELECT COUNT(*) FROM journal_papers jp ${jour.join} ${jour.where}) AS journal_papers,
+          (SELECT COUNT(*) FROM book_chapters bc ${chap.join} ${chap.where}) AS book_chapters,
+          (SELECT COUNT(*) FROM textbooks t ${text.join} ${text.where}) AS textbooks,
+          (SELECT COUNT(DISTINCT sp.id) FROM sponsored_projects sp ${sp.join} ${sp.where}) AS sponsored_projects,
+          (SELECT COUNT(DISTINCT cp.id) FROM consultancy_projects cp ${cp.join} ${cp.where}) AS consultancy_projects
       `
       return { sql, params }
     }
 
-    // ---- ALL PUBLICATIONS ----
-    if (type === 'all') {
-      const { sql: countSql, params: countParams } = buildCountQuery(null)
-      const countRes = await query(countSql, countParams)
-      const total = Number(countRes[0].count)
-
-      const { sql, params } = buildUnionQuery(null)
-      const results = await query(sql, params)
-      results.forEach((r) => delete r.sort_year)
-
-      return NextResponse.json({
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        data: results,
-      })
-    }
-
-    // ---- DEPARTMENT FILTER ----
-    if (depList.has(type)) {
-      const dept = depList.get(type)
-
+    let countRes = []
+    try {
       const { sql: countSql, params: countParams } = buildCountQuery(dept)
-      const countRes = await query(countSql, countParams)
-      const total = Number(countRes[0].count)
-
-      const { sql, params } = buildUnionQuery(dept)
-      const results = await query(sql, params)
-      results.forEach((r) => delete r.sort_year)
-
-      return NextResponse.json({
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        data: results,
-      })
+      countRes = await query(countSql, countParams)
+    } catch (countErr) {
+      console.error('Stats count query error, using fallback:', countErr)
+      try {
+        const conf = buildClause('cp.email', YEAR_EXPR.conference, dept, yearFilter)
+        const jour = buildClause('jp.email', YEAR_EXPR.journal, dept, yearFilter)
+        const chap = buildClause('bc.email', YEAR_EXPR.book_chapter, dept, yearFilter)
+        const text = buildClause('t.email', YEAR_EXPR.textbook, dept, yearFilter)
+        const pubParams = [...conf.params, ...jour.params, ...chap.params, ...text.params]
+        const fallbackSql = `
+          SELECT
+            (SELECT COUNT(*) FROM conference_papers cp ${conf.join} ${conf.where}) AS conference_papers,
+            (SELECT COUNT(*) FROM journal_papers jp ${jour.join} ${jour.where}) AS journal_papers,
+            (SELECT COUNT(*) FROM book_chapters bc ${chap.join} ${chap.where}) AS book_chapters,
+            (SELECT COUNT(*) FROM textbooks t ${text.join} ${text.where}) AS textbooks
+        `
+        countRes = await query(fallbackSql, pubParams)
+      } catch (e2) {
+        console.error('Fallback count error:', e2)
+      }
     }
 
-    return NextResponse.json({ message: 'Invalid type parameter' }, { status: 400 })
+    const journalCount = Number(countRes[0]?.journal_papers || 0)
+    const conferenceCount = Number(countRes[0]?.conference_papers || 0)
+    const bookChapterCount = Number(countRes[0]?.book_chapters || 0)
+    const textbookCount = Number(countRes[0]?.textbooks || 0)
+    const sponsoredCount = Number(countRes[0]?.sponsored_projects || 0)
+    const consultancyCount = Number(countRes[0]?.consultancy_projects || 0)
+
+    const booksCount = bookChapterCount + textbookCount
+    const projectsCount = sponsoredCount + consultancyCount
+    const total = conferenceCount + journalCount + bookChapterCount + textbookCount
+
+    const stats = {
+      journals: journalCount,
+      conferences: conferenceCount,
+      books: booksCount,
+      projects: projectsCount,
+      book_chapters: bookChapterCount,
+      textbooks: textbookCount,
+      sponsored_projects: sponsoredCount,
+      consultancy_projects: consultancyCount,
+      total: total,
+    }
+
+    const { sql, params } = buildUnionQuery(dept)
+    const results = await query(sql, params)
+    results.forEach((r) => delete r.sort_year)
+
+    return NextResponse.json({
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      stats,
+      data: results,
+    })
   } catch (error) {
     console.error('API Error:', error)
     return NextResponse.json({ message: error.message }, { status: 500 })

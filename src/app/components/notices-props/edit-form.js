@@ -71,6 +71,7 @@ export const EditForm = ({ data, handleClose, modal }) => {
         type: data.notice_type || 'general',
         department: data.department || null,
         important: data.important || false,
+        is_new: data.is_new || false,
         isDept: data.isDept || 0,
         email: data?.email || null,
         // Support notice sub types in content state (default or predefined)
@@ -139,16 +140,19 @@ export const EditForm = ({ data, handleClose, modal }) => {
         setSubmitting(true)
        
         try {
-            let attachments = [...add_attach]
-            if (new_attach.length) {
-                const processedAttachments = await handleNewAttachments(new_attach)
-                const newAttachmentsWithIds = processedAttachments.map(attachment => ({
-                    id: Date.now() + Math.random(),
-                    caption: attachment.caption,
-                    url: attachment.url,
-                    key: attachment.key,
-                    typeLink: attachment.typeLink
-                }))
+            let attachments = [...add_attach].filter(item => Boolean(item.url))
+            const validNewAttach = new_attach.filter(item => Boolean(item.url || item.value))
+            if (validNewAttach.length) {
+                const processedAttachments = await handleNewAttachments(validNewAttach)
+                const newAttachmentsWithIds = processedAttachments
+                    .filter(attachment => Boolean(attachment.url))
+                    .map(attachment => ({
+                        id: Date.now() + Math.random(),
+                        caption: attachment.caption || '',
+                        url: attachment.url,
+                        key: attachment.key || '',
+                        typeLink: Boolean(attachment.typeLink)
+                    }))
                 attachments = [...attachments, ...newAttachmentsWithIds]
             }
 
@@ -167,6 +171,7 @@ export const EditForm = ({ data, handleClose, modal }) => {
                 attachments: attachments,
                 deleteArray: deleteArray.current,
                 important: content.important,
+                is_new: content.is_new,
                 department: content.department || null,
                 isDept: content.type === 'department' ? 1 : 0,
                 additional_title: content.additional_title?.trim() || null
@@ -306,7 +311,7 @@ export const EditForm = ({ data, handleClose, modal }) => {
                             </Grid>
                         </Grid>
 
-                        <Box sx={{ mb: 2 }}>
+                        <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
                             <FormControlLabel
                                 control={
                                     <Checkbox
@@ -324,6 +329,26 @@ export const EditForm = ({ data, handleClose, modal }) => {
                                 label={
                                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                         Mark as Important
+                                    </Typography>
+                                }
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        name="is_new"
+                                        checked={Boolean(content.is_new)}
+                                        onChange={handleChange}
+                                        sx={{ 
+                                            color: '#00796b',
+                                            '&.Mui-checked': {
+                                                color: '#00796b',
+                                            },
+                                        }}
+                                    />
+                                }
+                                label={
+                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                        Mark as New
                                     </Typography>
                                 }
                             />

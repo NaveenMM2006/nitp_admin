@@ -52,6 +52,7 @@ export const AddForm = ({ handleClose, modal }) => {
                  session?.user?.role === 'TENDER_NOTICE_ADMIN' ? 'tender' :
                  session?.user?.role === 'EXAM_ADMIN' ? 'exam' : 'general',
         important: false,
+        is_new: false,
         department: session?.user?.role === 'DEPT_ADMIN' ? session.user.department : null,
         isDept: session?.user?.role === 'DEPT_ADMIN' ? 1 : 0,
         notice_sub_type: '',
@@ -86,12 +87,15 @@ export const AddForm = ({ handleClose, modal }) => {
         setSubmitting(true)
         try {
             let attachments = []
-            if (new_attach.length) {
-                const processedAttachments = await handleNewAttachments(new_attach)
-                attachments = processedAttachments.map(attachment => ({
-                    caption: attachment.caption,
-                    url: attachment.url
-                }))
+            const validNewAttach = new_attach.filter(item => Boolean(item.url || item.value))
+            if (validNewAttach.length) {
+                const processedAttachments = await handleNewAttachments(validNewAttach)
+                attachments = processedAttachments
+                    .filter(attachment => Boolean(attachment.url))
+                    .map(attachment => ({
+                        caption: attachment.caption || '',
+                        url: attachment.url
+                    }))
             }
 
             const finaldata = {
@@ -107,6 +111,7 @@ export const AddForm = ({ handleClose, modal }) => {
                 author: session.user.name,
                 attachments,
                 important: content.important,
+                is_new: content.is_new,
                 department: content.department || null,
                 isDept: content.type === 'department' ? 1 : 0,
                 notice_sub_type: content.notice_sub_type ? content.notice_sub_type: undefined,
@@ -260,7 +265,7 @@ export const AddForm = ({ handleClose, modal }) => {
                             </Grid>
                         </Grid>
 
-                        <Box sx={{ mb: 2 }}>
+                        <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
                             <FormControlLabel
                                 control={
                                     <Checkbox
@@ -278,6 +283,26 @@ export const AddForm = ({ handleClose, modal }) => {
                                 label={
                                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                         Mark as Important
+                                    </Typography>
+                                }
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        name="is_new"
+                                        checked={Boolean(content.is_new)}
+                                        onChange={handleChange}
+                                        sx={{ 
+                                            color: '#00796b',
+                                            '&.Mui-checked': {
+                                                color: '#00796b',
+                                            },
+                                        }}
+                                    />
+                                }
+                                label={
+                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                        Mark as New
                                     </Typography>
                                 }
                             />
