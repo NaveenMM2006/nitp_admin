@@ -1,9 +1,10 @@
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
-import { query } from '@/lib/db'
+import { query, transaction } from '@/lib/db'
 import { ROLES, hasAccess } from '@/lib/roles'
 // import { authOptions } from '../auth/[...nextauth]/route'
 import { authOptions } from '@/lib/authOptions'
+import { deleteS3File } from '@/lib/utils'
 import { invalidateProfileIfNeeded } from '@/lib/profileCache'
 import { notice_sub_types } from '@/lib/const';
 import { invalidatePublicationsCache } from '@/lib/publicationsCache'
@@ -68,31 +69,98 @@ export async function POST(request) {
         }
       }
 
-      const noticeResult = await query(
-        `INSERT INTO notices(
-    id, title, timestamp, openDate, closeDate, important, isVisible, attachments, email, 
-    isDept, notice_link, notice_type, updatedBy, updatedAt, department,notice_sub_type
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`,
-  [
-    params.data.id,
-    params.data.title,
-    new Date().getTime(),
-    params.data.openDate,
-    params.data.closeDate,
-    params.data.important || 0,
-    params.data.isVisible === undefined ? 1 : Number(params.data.isVisible),
-    JSON.stringify(params.data.attachments),
-    params.data.email,
-    params.data.isDept || 0,
-    params.data.notice_link || null,
-    params.data.notice_type || null,
-    session.user.email,    new Date().getTime(),
-    params.data.department || null,
-    params.data.notice_type?.toLowerCase() === "admissions" 
-      ? params.data.notice_sub_type?.trim() || null
-      : params.data.notice_sub_type?.trim()?.toUpperCase() || null
-  ]
-      )
+      // Check attachments length
+      const attachmentsString = JSON.stringify(params.data.attachments || []);
+      if (attachmentsString.length > 1000) {
+        return NextResponse.json(
+          { message: 'Attachments list is too large (exceeds 1000 characters). Please attach fewer files or use shorter links.' },
+          { status: 400 }
+        );
+      }
+
+      const noticeQuery = {
+        query: `INSERT INTO notices(
+          id, title, timestamp, openDate, closeDate, important, isVisible, attachments, email, 
+          isDept, notice_link, notice_type, updatedBy, updatedAt, department, notice_sub_type
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        values: [
+          params.data.id,
+          params.data.title,
+          new Date().getTime(),
+          params.data.openDate,
+          params.data.closeDate,
+          params.data.important || 0,
+          params.data.isVisible === undefined ? 1 : Number(params.data.isVisible),
+          attachmentsString,
+          params.data.email,
+          params.data.isDept || 0,
+          params.data.notice_link || null,
+          params.data.notice_type || null,
+          session.user.email,    
+          new Date().getTime(),
+          params.data.department || null,
+          params.data.notice_type?.toLowerCase() === "admissions" 
+            ? params.data.notice_sub_type?.trim() || null
+            : params.data.notice_sub_type?.trim()?.toUpperCase() || null
+        ]
+      };
+
+      const queries = [noticeQuery];
+      
+      // Prepare notice_attachments queries if fileMetadata is provided
+      if (params.fileMetadata && Array.isArray(params.fileMetadata)) {
+        for (const fileMeta of params.fileMetadata) {
+          if (fileMeta.s3Key) {
+            queries.push({
+              query: `INSERT INTO notice_attachments (
+                notice_id, directory_id, caption, original_filename, stored_filename, 
+                s3_key, s3_url, mime_type, file_size, uploaded_by
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              values: [
+                params.data.id, 
+                fileMeta.directoryId,
+                fileMeta.caption || null,
+                fileMeta.originalFilename || null,
+                fileMeta.storedFilename || null,
+                fileMeta.s3Key,
+                fileMeta.s3Url || fileMeta.url || null,
+                fileMeta.mimeType || null,
+                fileMeta.fileSize || null,
+                session.user.email
+              ]
+            });
+          }
+        }
+      }
+
+      let noticeResult;
+      try {
+        const results = await transaction(queries);
+        noticeResult = results[0]; // The result of the notices INSERT
+      } catch (error) {
+        console.error('Notice creation transaction failed:', error);
+        
+        // S3 Cleanup Rollback for managed files
+        if (params.fileMetadata && Array.isArray(params.fileMetadata)) {
+          console.log('Rolling back S3 uploads due to DB transaction failure...');
+          for (const fileMeta of params.fileMetadata) {
+            try {
+              if (fileMeta.s3Key) {
+                await deleteS3File(fileMeta.s3Key);
+                console.log(`Rolled back S3 file: ${fileMeta.s3Key}`);
+              }
+            } catch (s3Error) {
+              console.error(`Failed to clean up S3 file ${fileMeta.s3Key} during rollback:`, s3Error);
+            }
+          }
+        }
+        
+        return NextResponse.json(
+          { message: 'Database transaction failed. ' + error.message },
+          { status: 500 }
+        );
+      }
+
       await invalidateProfileIfNeeded(type, params);
       return NextResponse.json(noticeResult)
     }

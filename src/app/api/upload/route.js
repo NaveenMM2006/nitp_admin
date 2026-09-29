@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 import { randomBytes } from 'crypto';
 
 // Initialize S3 client
@@ -14,8 +15,8 @@ const s3Client = new S3Client({
 
 export async function POST(request) {
   try {
-    const session = await getServerSession();
-    
+    const session = await getServerSession(authOptions);
+
     if (!session) {
       console.log('Upload attempt - Not authenticated');
       return NextResponse.json(
@@ -27,7 +28,8 @@ export async function POST(request) {
     const formData = await request.formData();
     const file = formData.get('file');
     const fileType = formData.get('fileType') || 'general'; // 'profile', 'general', etc.
-    
+    const directoryId = formData.get('directoryId');
+
     if (!file) {
       console.log('Upload attempt - No file provided');
       return NextResponse.json(
@@ -58,11 +60,44 @@ export async function POST(request) {
 
     console.log(`Upload started - File: ${file.name}, Size: ${file.size} bytes, Type: ${file.type}, User: ${session.user.email}`);
 
+    // Resolve directory and s3_prefix
+    const { query } = require('@/lib/db');
+    let s3Prefix = 'notices/default/';
+    let resolvedDirectoryId = null;
+
+    if (directoryId) {
+      try {
+        const dirResult = await query('SELECT id, s3_prefix FROM file_directories WHERE id = ? AND is_active = TRUE', [directoryId]);
+        if (dirResult && dirResult.length > 0) {
+          s3Prefix = dirResult[0].s3_prefix;
+          resolvedDirectoryId = dirResult[0].id;
+        } else {
+          console.log(`Upload warning: directoryId ${directoryId} not found or inactive. Falling back to default.`);
+        }
+      } catch (e) {
+        console.error('Error fetching directory prefix:', e);
+      }
+    }
+
+    // Fallback to default directory if not resolved
+    if (!resolvedDirectoryId) {
+      try {
+        const defaultResult = await query('SELECT id FROM file_directories WHERE slug = ?', ['default']);
+        if (defaultResult && defaultResult.length > 0) {
+          resolvedDirectoryId = defaultResult[0].id;
+        }
+      } catch (e) {
+        console.error('Error fetching default directory:', e);
+      }
+    }
+
     // Convert file to buffer and generate unique key
     const buffer = await file.arrayBuffer();
-    const fileExtension = file.name.split('.').pop();
-    const uniqueKey = `${Date.now()}-${randomBytes(8).toString('hex')}${fileExtension ? '.' + fileExtension : ''}`;
-    
+    const originalFilename = file.name;
+    const fileExtension = originalFilename.split('.').pop();
+    const storedFilename = `${Date.now()}-${randomBytes(8).toString('hex')}${fileExtension ? '.' + fileExtension : ''}`;
+    const uniqueKey = `${s3Prefix}${storedFilename}`;
+
     // Upload to S3
     const uploadParams = {
       Bucket: process.env.AWS_S3_BUCKET_NAME,
@@ -81,8 +116,14 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      url: fileUrl,
-      key: uniqueKey
+      s3Key: uniqueKey,
+      s3Url: fileUrl,
+      url: fileUrl, // Backwards compatibility for existing UI
+      originalFilename: originalFilename,
+      storedFilename: storedFilename,
+      mimeType: file.type,
+      fileSize: file.size,
+      directoryId: resolvedDirectoryId
     });
 
   } catch (error) {

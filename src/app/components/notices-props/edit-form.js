@@ -20,7 +20,7 @@ import {
 } from '@mui/material'
 import { Delete, Link, Warning } from '@mui/icons-material'
 import { useSession } from 'next-auth/react'
-import React, { useRef, useState, useMemo } from 'react'
+import React, { useRef, useState, useMemo, useEffect } from 'react'
 import { dateformatter } from './../common-props/date-formatter'
 import { ConfirmDelete } from './confirm-delete'
 import { AddAttachments } from './../common-props/add-attachment'
@@ -99,6 +99,32 @@ export const EditForm = ({ data, handleClose, modal }) => {
 
     const [new_attach, setNew_attach] = useState([]);
 
+    // File Management State
+    const [directories, setDirectories] = useState([]);
+    const [mappings, setMappings] = useState([]);
+
+    useEffect(() => {
+        // Fetch active directories and mappings
+        const fetchFileManagementData = async () => {
+            try {
+                const [dirRes, mapRes] = await Promise.all([
+                    fetch('/api/file-management/directories'),
+                    fetch('/api/file-management/mappings')
+                ]);
+                if (dirRes.ok && mapRes.ok) {
+                    const dirs = await dirRes.json();
+                    const maps = await mapRes.json();
+                    const activeDirs = dirs.filter(d => d.is_active);
+                    setDirectories(activeDirs);
+                    setMappings(maps);
+                }
+            } catch (err) {
+                console.error("Failed to load file management config:", err);
+            }
+        };
+        fetchFileManagementData();
+    }, []);
+
     // If selected notice type or predefined data has sub types, this returns the subtypes or null/undefined (Array or undefined).
     const currentNoticeSubTypes = useMemo(() => {
         if (!content.type) return undefined;
@@ -119,8 +145,39 @@ export const EditForm = ({ data, handleClose, modal }) => {
     const handleChange = (e) => {
         const { name, type, value, checked } = e.target;
         const fieldValue = type === 'checkbox' ? (checked ? 1 : 0) : value;
-        setContent((prev) => ({ ...prev, [name]: fieldValue }));
+        // If user selects a new notice type, reset sub_type
+        if (name === "type") {
+            setContent((prev) => ({ ...prev, [name]: fieldValue, notice_sub_type: '' }));
+        } else {
+            setContent((prev) => ({ ...prev, [name]: fieldValue }));
+        }
     };
+
+    // Filter available directories based on type and sub_type
+    const availableDirectories = useMemo(() => {
+        if (!directories.length) return [];
+        
+        return directories.filter(dir => {
+            if (dir.slug === 'default') return true; // Default is always available
+            
+            // Check mappings
+            const dirMappings = mappings.filter(m => m.directory_id === dir.id);
+            if (dirMappings.length === 0) return false;
+            
+            return dirMappings.some(m => {
+                const typeMatches = m.notice_type === content.type;
+                if (!typeMatches) return false;
+                
+                // If mapping has no sub_type, it's valid for all sub_types of this type
+                if (!m.notice_sub_type) return true;
+                
+                // Otherwise exact match required
+                return m.notice_sub_type === content.notice_sub_type;
+            });
+        });
+    }, [directories, mappings, content.type, content.notice_sub_type]);
+
+
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -128,8 +185,10 @@ export const EditForm = ({ data, handleClose, modal }) => {
        
         try {
             let attachments = [...add_attach]
+            let fileMetadata = []
+            
             if (new_attach.length) {
-                const processedAttachments = await handleNewAttachments(new_attach)
+                const processedAttachments = await handleNewAttachments(new_attach, null)
                 const newAttachmentsWithIds = processedAttachments.map(attachment => ({
                     id: Date.now() + Math.random(),
                     caption: attachment.caption,
@@ -138,6 +197,11 @@ export const EditForm = ({ data, handleClose, modal }) => {
                     typeLink: attachment.typeLink
                 }))
                 attachments = [...attachments, ...newAttachmentsWithIds]
+                
+                // Extract rich metadata for new attachments only
+                fileMetadata = processedAttachments
+                    .filter(att => att.fileMetadata)
+                    .map(att => att.fileMetadata)
             }
 
             // For payload: pass notice_sub_type as 'notice_sub_type' property
@@ -166,6 +230,7 @@ export const EditForm = ({ data, handleClose, modal }) => {
                 },
                 body: JSON.stringify({
                     data: finaldata,
+                    fileMetadata: fileMetadata.length > 0 ? fileMetadata : undefined,
                     type: "notice"
                 }),
             })
@@ -417,9 +482,12 @@ export const EditForm = ({ data, handleClose, modal }) => {
                             <Typography variant="subtitle2" sx={{ mb: 2, color: '#666' }}>
                                 Add New Attachments
                             </Typography>
+
                             <AddAttachments
                                 attachments={new_attach}
                                 setAttachments={setNew_attach}
+                                showDirectorySelector={true}
+                                directories={availableDirectories}
                             />
                         </Box>
                     </Box>

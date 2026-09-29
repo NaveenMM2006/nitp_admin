@@ -63,6 +63,34 @@ export async function POST(request) {
         )
       }
 
+      // Delete managed S3 files using exact s3_key
+      try {
+        const managedFiles = await query(
+          `SELECT id, s3_key FROM notice_attachments WHERE notice_id = ?`,
+          [params.id]
+        );
+        
+        if (managedFiles && managedFiles.length > 0) {
+          console.log(`[Notice Deletion] Notice ID ${params.id} has ${managedFiles.length} managed files.`);
+          const managedDeletionPromises = managedFiles.map(async (file) => {
+            try {
+              if (file.s3_key) {
+                await deleteS3File(file.s3_key);
+                console.log(`[Notice Deletion] Successfully deleted managed key: ${file.s3_key}`);
+              }
+            } catch (deleteError) {
+              console.error(`[Notice Deletion] Failed to delete managed key ${file.s3_key}:`, deleteError.message);
+            }
+          });
+          await Promise.all(managedDeletionPromises);
+          
+          // Delete records from notice_attachments
+          await query(`DELETE FROM notice_attachments WHERE notice_id = ?`, [params.id]);
+        }
+      } catch (err) {
+        console.error('[Notice Deletion] Error handling managed files:', err);
+      }
+
       // Delete S3 files if attachments exist
       if (noticeData.attachments) {
         try {
