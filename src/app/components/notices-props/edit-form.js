@@ -71,10 +71,12 @@ export const EditForm = ({ data, handleClose, modal }) => {
         type: data.notice_type || 'general',
         department: data.department || null,
         important: data.important || false,
+        is_new: data.is_new || false,
         isDept: data.isDept || 0,
         email: data?.email || null,
         // Support notice sub types in content state (default or predefined)
-        notice_sub_type: data.notice_sub_type || ''
+        notice_sub_type: data.notice_sub_type || '',
+        additional_title: data.additional_title || ''
     })
 
     const [verifyDelete, setVerifyDelete] = useState(false)
@@ -136,11 +138,22 @@ export const EditForm = ({ data, handleClose, modal }) => {
         }
         const rawSubTypes = notice_sub_types[key];
         if (Array.isArray(rawSubTypes)) {
-           
-            return rawSubTypes.map(arr => arr[1]);
+            return rawSubTypes;
         }
         return undefined;
     }, [content.type]);
+
+    const selectedSubTypeValue = useMemo(() => {
+        if (!content.notice_sub_type || !currentNoticeSubTypes) return '';
+        const target = String(content.notice_sub_type).trim().toLowerCase();
+        const matched = currentNoticeSubTypes.find(
+            ([id, label]) => id.toLowerCase() === target || label.toLowerCase() === target
+        );
+        if (matched) {
+            return content.type?.toLowerCase() === 'admissions' ? matched[0] : matched[1];
+        }
+        return content.notice_sub_type;
+    }, [content.notice_sub_type, currentNoticeSubTypes, content.type]);
 
     const handleChange = (e) => {
         const { name, type, value, checked } = e.target;
@@ -212,15 +225,17 @@ export const EditForm = ({ data, handleClose, modal }) => {
                 openDate: new Date(content.openDate).getTime(),
                 closeDate: new Date(content.closeDate).getTime(),
                 notice_type: content.type,
-                notice_sub_type: currentNoticeSubTypes?(content.notice_sub_type || undefined):undefined,
+                notice_sub_type: currentNoticeSubTypes ? (selectedSubTypeValue || content.notice_sub_type || undefined) : undefined,
                 category: content.category,
                 updatedAt: Date.now(),
                 updatedBy: session.user.email,
                 attachments: attachments,
                 deleteArray: deleteArray.current,
                 important: content.important,
+                is_new: content.is_new,
                 department: content.department || null,
-                isDept: content.type === 'department' ? 1 : 0
+                isDept: content.type === 'department' ? 1 : 0,
+                additional_title: content.additional_title?.trim() || null
             }
 
             const result = await fetch('/api/update', {
@@ -310,6 +325,18 @@ export const EditForm = ({ data, handleClose, modal }) => {
                             sx={{ mb: 2 }}
                             variant="outlined"
                         />
+                        <TextField
+                            margin="dense"
+                            label="Additional Title (Optional)"
+                            name="additional_title"
+                            type="text"
+                            fullWidth
+                            value={content.additional_title}
+                            onChange={handleChange}
+                            sx={{ mb: 2 }}
+                            variant="outlined"
+                            placeholder="Enter additional title (optional)..."
+                        />
                         
                         <Grid container spacing={2} sx={{ mb: 2 }}>
                             <Grid item xs={12} sm={6}>
@@ -346,7 +373,7 @@ export const EditForm = ({ data, handleClose, modal }) => {
                             </Grid>
                         </Grid>
 
-                        <Box sx={{ mb: 2 }}>
+                        <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
                             <FormControlLabel
                                 control={
                                     <Checkbox
@@ -367,6 +394,26 @@ export const EditForm = ({ data, handleClose, modal }) => {
                                     </Typography>
                                 }
                             />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        name="is_new"
+                                        checked={Boolean(content.is_new)}
+                                        onChange={handleChange}
+                                        sx={{ 
+                                            color: '#00796b',
+                                            '&.Mui-checked': {
+                                                color: '#00796b',
+                                            },
+                                        }}
+                                    />
+                                }
+                                label={
+                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                        Mark as New
+                                    </Typography>
+                                }
+                            />
                         </Box>
 
                         <Grid container spacing={2}>
@@ -378,11 +425,22 @@ export const EditForm = ({ data, handleClose, modal }) => {
                                         value={content.type}
                                         onChange={handleChange}
                                         label="Notice Type"
-                                        disabled={session?.user?.role === 'DEPT_ADMIN'}
+                                        disabled={
+                                            session?.user?.role === 'DEPT_ADMIN' ||
+                                            session?.user?.role === 'ACADEMIC_ADMIN' ||
+                                            session?.user?.role === 'TENDER_NOTICE_ADMIN' ||
+                                            session?.user?.role === 'EXAM_ADMIN'
+                                        }
                                         required
                                     >
                                         {session?.user?.role === 'DEPT_ADMIN' ? (
                                             <MenuItem value="department">Department</MenuItem>
+                                        ) : session?.user?.role === 'ACADEMIC_ADMIN' ? (
+                                            <MenuItem value="academics">Academics</MenuItem>
+                                        ) : session?.user?.role === 'TENDER_NOTICE_ADMIN' ? (
+                                            <MenuItem value="tender">Tender</MenuItem>
+                                        ) : session?.user?.role === 'EXAM_ADMIN' ? (
+                                            <MenuItem value="exam">Examination Section</MenuItem>
                                         ) : [
                                             <MenuItem value="general" key="general">General</MenuItem>,
                                             <MenuItem value="department" key="department">Department</MenuItem>,
@@ -429,7 +487,7 @@ export const EditForm = ({ data, handleClose, modal }) => {
                                         <InputLabel>Sub-Type</InputLabel>
                                         <Select
                                             name="notice_sub_type"
-                                            value={content.notice_sub_type || ""}
+                                            value={selectedSubTypeValue}
                                             onChange={handleChange}
                                             label="Sub-Type"
                                             required
@@ -437,9 +495,10 @@ export const EditForm = ({ data, handleClose, modal }) => {
                                             <MenuItem value="">
                                                 <em>Select Sub-Type</em>
                                             </MenuItem>
-                                            {currentNoticeSubTypes.map(subType =>
-                                                <MenuItem key={subType} value={subType}>{subType}</MenuItem>
-                                            )}
+                                            {currentNoticeSubTypes.map(([id, label]) => {
+                                                const val = content.type?.toLowerCase() === 'admissions' ? id : label;
+                                                return <MenuItem key={id} value={val}>{label}</MenuItem>;
+                                            })}
                                         </Select>
                                     </FormControl>
                                 </Grid>

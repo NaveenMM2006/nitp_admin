@@ -1,6 +1,6 @@
 import React from 'react';
-import { Modal, Box, Typography, IconButton, Link } from '@mui/material';
-import { Close as CloseIcon, AttachFile as AttachFileIcon } from '@mui/icons-material';
+import { Modal, Box, Typography, IconButton, Link, Chip } from '@mui/material';
+import { Close as CloseIcon, AttachFile as AttachFileIcon, Star as StarIcon, FiberNew as FiberNewIcon } from '@mui/icons-material';
 
 const style = {
     position: 'absolute',
@@ -76,9 +76,25 @@ const ViewDetailsModal = ({ open, handleClose, detail }) => {
         >
             <Box sx={style}>
                 <Box sx={headerStyle}>
-                    <Typography id="modal-title" variant="h6" sx={titleStyle}>
-                        {detail.title}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {Boolean(detail?.important) && (
+                            <Chip icon={<StarIcon />} label="Important" color="error" size="small" />
+                        )}
+                        {Boolean(detail?.is_new || detail?.new) && (
+                            <Chip 
+                                label="New" 
+                                size="small"
+                                sx={{
+                                    backgroundColor: '#00796b',
+                                    color: '#ffffff',
+                                    fontWeight: 600
+                                }}
+                            />
+                        )}
+                        <Typography id="modal-title" variant="h6" sx={titleStyle}>
+                            {detail?.title} {detail?.additional_title ? `(${detail.additional_title})` : ''}
+                        </Typography>
+                    </Box>
                     <IconButton onClick={handleClose} sx={closeButtonStyle}>
                         <CloseIcon />
                     </IconButton>
@@ -87,13 +103,13 @@ const ViewDetailsModal = ({ open, handleClose, detail }) => {
                     {detail.description}
                 </Typography>
 
-                {detail.attachments && Array.isArray(detail.attachments) && detail.attachments.length > 0 && (
+                {detail.attachments && Array.isArray(detail.attachments) && detail.attachments.filter(att => Boolean(att?.url)).length > 0 && (
                     <Box sx={attachmentsBoxStyle}>
                         <Typography variant="subtitle1" sx={{ fontWeight: 500, color: '#333' }}>Attachments:</Typography>
-                        {detail.attachments.map((attachment, index) => (
+                        {detail.attachments.filter(att => Boolean(att?.url)).map((attachment, index) => (
                             <Box key={index} sx={attachmentItemStyle}>
                                 <Typography variant="body2" sx={{ marginRight: '8px', fontWeight: 500 }}>
-                                    {attachment.caption}
+                                    {attachment.caption || 'Attachment'}
                                 </Typography>
                                 <AttachFileIcon fontSize="small" color="action" />
                                 <Link 

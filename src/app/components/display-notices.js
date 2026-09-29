@@ -19,6 +19,7 @@ import {
     Visibility as VisibilityIcon,
     Delete as DeleteIcon,
     Star as StarIcon,
+    FiberNew as FiberNewIcon,
     Description as DescriptionIcon,
     AttachFile as AttachFileIcon
 } from '@mui/icons-material'
@@ -86,12 +87,23 @@ const Notice = ({ detail }) => {
             <TableRow sx={{ '&:hover': { backgroundColor: '#f5f5f5' } }}>
                 <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {detail.important && (
+                        {Boolean(detail.important) && (
                             <Chip
                                 icon={<StarIcon />}
                                 label="Important"
                                 color="error"
                                 size="small"
+                            />
+                        )}
+                        {Boolean(detail.is_new || detail.new) && (
+                            <Chip
+                                label="New"
+                                size="small"
+                                sx={{
+                                    backgroundColor: '#00796b',
+                                    color: '#ffffff',
+                                    fontWeight: 600
+                                }}
                             />
                         )}
                         <Typography 
@@ -104,7 +116,7 @@ const Notice = ({ detail }) => {
                                 whiteSpace: 'nowrap'
                             }}
                         >
-                            {detail.title}
+                            {detail.title} {detail.additional_title ? `(${detail.additional_title})` : ''}
                         </Typography>
                     </Box>
                 </TableCell>
@@ -124,11 +136,11 @@ const Notice = ({ detail }) => {
                     </Typography>
                 </TableCell>
                 <TableCell>
-                    {detail.attachments?.length > 0 ? (
+                    {detail.attachments?.filter(att => Boolean(att?.url))?.length > 0 ? (
                         <Box display="flex" alignItems="center">
                             <AttachFileIcon fontSize="small" color="action" />
                             <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-                                {detail.attachments.length}
+                                {detail.attachments.filter(att => Boolean(att?.url)).length}
                             </Typography>
                         </Box>
                     ) : (
@@ -149,7 +161,8 @@ const Notice = ({ detail }) => {
                         {(session?.user?.role === 'SUPER_ADMIN' ||
                             (session?.user?.role === 'ACADEMIC_ADMIN' && detail.notice_type === 'academics') ||
                             (session?.user?.role === 'DEPT_ADMIN' && detail.notice_type === 'department' && detail.department === session.user.department) ||
-                            (session?.user?.role === 'TENDER_NOTICE_ADMIN' && detail.notice_type === 'tender')) && (
+                            (session?.user?.role === 'TENDER_NOTICE_ADMIN' && detail.notice_type === 'tender') ||
+                            (session?.user?.role === 'EXAM_ADMIN' && detail.notice_type === 'exam')) && (
                             <>
                                 <Tooltip title="Edit Notice">
                                     <IconButton
@@ -219,6 +232,8 @@ const DataDisplay = ({ data }) => {
                 department = session.user.department;
             } else if (session?.user?.role === 'TENDER_NOTICE_ADMIN') {
                 noticeType = 'tender';
+            } else if (session?.user?.role === 'EXAM_ADMIN') {
+                noticeType = 'exam';
             }
 
             fetch('/api/notice', {
@@ -255,6 +270,8 @@ const DataDisplay = ({ data }) => {
                 );
             } else if (session?.user?.role === 'TENDER_NOTICE_ADMIN') {
                 filteredData = filteredData.filter(notice => notice.notice_type === 'tender');
+            } else if (session?.user?.role === 'EXAM_ADMIN') {
+                filteredData = filteredData.filter(notice => notice.notice_type === 'exam');
             } else if (filterQuery.notice_type && filterQuery.notice_type !== 'all') {
                 filteredData = filteredData.filter(notice => notice.notice_type === filterQuery.notice_type);
             }
@@ -283,6 +300,7 @@ const DataDisplay = ({ data }) => {
                     {session?.user?.role === 'ACADEMIC_ADMIN' ? 'Academic Notices' : 
                      session?.user?.role === 'DEPT_ADMIN' ? `${session.user.department} Notices` :
                      session?.user?.role === 'TENDER_NOTICE_ADMIN' ? 'Tender Notices' : 
+                     session?.user?.role === 'EXAM_ADMIN' ? 'Exam Notices' :
                      'Recent Notices'}
                 </Typography>
                 
@@ -295,7 +313,7 @@ const DataDisplay = ({ data }) => {
                 >
                     Add New Notice
                 </Button>
-                    {session?.user?.role !== 'ACADEMIC_ADMIN' && session?.user?.role !== 'DEPT_ADMIN' && session?.user?.role !== 'TENDER_NOTICE_ADMIN' && (
+                    {session?.user?.role !== 'ACADEMIC_ADMIN' && session?.user?.role !== 'DEPT_ADMIN' && session?.user?.role !== 'TENDER_NOTICE_ADMIN' && session?.user?.role !== 'EXAM_ADMIN' && (
                 <Filter type="notice" setEntries={setFilterQuery} style={{ color: '#830001' }}/>
                     )}
                 </Box>

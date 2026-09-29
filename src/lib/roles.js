@@ -7,6 +7,7 @@ export const ROLES = {
   STAFF: 5,
   TENDER_NOTICE_ADMIN: 7,
   CLUB_ADMIN: 8,
+  EXAM_ADMIN: 9,
 }
 
 export const ROLE_NAMES = {
@@ -18,6 +19,7 @@ export const ROLE_NAMES = {
   5: 'Staff',
   7: 'Tender Notice Admin',
   8: 'Club Admin',
+  9: 'Exam Admin',
 }
 
 export const hasAccess = (userRole, userDepartment, requiredRole, requiredDepartment) => {

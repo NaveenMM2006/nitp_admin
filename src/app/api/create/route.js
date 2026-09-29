@@ -5,7 +5,7 @@ import { ROLES, hasAccess } from '@/lib/roles'
 // import { authOptions } from '../auth/[...nextauth]/route'
 import { authOptions } from '@/lib/authOptions'
 import { deleteS3File } from '@/lib/utils'
-import { invalidateProfileIfNeeded } from '@/lib/profileCache'
+import { invalidateProfileIfNeeded, invalidateUserProfile } from '@/lib/profileCache'
 import { notice_sub_types } from '@/lib/const';
 import { invalidatePublicationsCache } from '@/lib/publicationsCache'
 
@@ -33,7 +33,8 @@ export async function POST(request) {
         session.user.role === 'SUPER_ADMIN' ||
         (session.user.role === 'DEPT_ADMIN' && params.data.department === session.user.department) ||
         session.user.role === 'ACADEMIC_ADMIN' ||
-        (session.user.role === 'TENDER_NOTICE_ADMIN' && params.data.notice_type === 'tender')
+        (session.user.role === 'TENDER_NOTICE_ADMIN' && params.data.notice_type === 'tender') ||
+        (session.user.role === 'EXAM_ADMIN' && params.data.notice_type === 'exam')
       
       console.log('Can create notice:', canCreateNotice)
       
@@ -44,14 +45,17 @@ export async function POST(request) {
         )
       }
 
-      if (params.data.notice_type ) {
+      if (params.data.notice_type) {
         const noticeTypeKey = params.data.notice_type.toUpperCase();
         if (notice_sub_types.hasOwnProperty(noticeTypeKey)) {
-          
-          const matchedSubType = notice_sub_types[noticeTypeKey].find(
-            ([id, label]) => id === params.data.notice_sub_type || label === params.data.notice_sub_type
-          );
-          
+          const matchedSubType = params.data.notice_sub_type
+            ? notice_sub_types[noticeTypeKey].find(
+                ([id, label]) =>
+                  id.toLowerCase() === params.data.notice_sub_type.trim().toLowerCase() ||
+                  label.toLowerCase() === params.data.notice_sub_type.trim().toLowerCase()
+              )
+            : null;
+
           if (!params.data.notice_sub_type || !matchedSubType) {
             return NextResponse.json(
               {
@@ -62,9 +66,11 @@ export async function POST(request) {
               { status: 400 },
             );
           }
-          
+
           if (params.data.notice_type.toLowerCase() === "admissions") {
             params.data.notice_sub_type = matchedSubType[0];
+          } else {
+            params.data.notice_sub_type = matchedSubType[1];
           }
         }
       }
@@ -170,8 +176,10 @@ export async function POST(request) {
       console.log("Inside user management")
       switch (type) {
         case 'user':
+          const formattedDOB = params.date_of_birth ? new Date(params.date_of_birth).toISOString().slice(0, 10) : null;
+          const formattedDOJ = params.date_of_joining ? new Date(params.date_of_joining).toISOString().slice(0, 10) : null;
           const userResult = await query(
-            `INSERT INTO user(name, email, role, category, gender, department, designation, ext_no, research_interest, academic_responsibility, is_retired, retirement_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO user(name, email, role, category, gender, department, designation, ext_no, research_interest, academic_responsibility, is_retired, retirement_date, date_of_birth, date_of_joining) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               params.name,
               params.email,
@@ -184,7 +192,9 @@ export async function POST(request) {
               params.research_interest,
               params.academic_responsibility || null,
               params.is_retired || false,
-              params.retirement_date || null
+              params.retirement_date || null,
+              formattedDOB,
+              formattedDOJ
             ]
           )
           await invalidateProfileIfNeeded(type, params);
@@ -515,61 +525,149 @@ export async function POST(request) {
             
             return NextResponse.json(chapterResult)
 
-          case 'sponsored_projects':
-            const sponsoredResult = await query(
-              `INSERT INTO sponsored_projects(id, email, role, project_title, funding_agency, financial_outlay, start_date, end_date, investigators, pi_institute, status, funds_received) VALUES (?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                params.id,
-                params.email,
-                params.role,
-                params.project_title,
-                params.funding_agency,
-                params.financial_outlay,
-                params.start_date,
-                params.end_date,
-                params.investigators,
-                params.pi_institute,
-                params.status,
-                params.funds_received
-              ]
-            )
-            if (params.collaboraters && Array.isArray(params.collaboraters)) {
-              for (const email of params.collaboraters) {
-                await query(
-                  `INSERT INTO sponsored_projects_collaborater(sponsored_project_id, email) VALUES (?, ?)`,
-                  [params.id, email]
-                )
-              }
-            }
-            await invalidateProfileIfNeeded(type, params);
-            return NextResponse.json(sponsoredResult)
+case 'sponsored_projects': {
+  // 1. Insert main sponsored project
+  await query(
+    `INSERT INTO sponsored_projects (
+      id, email, role, project_title, funding_agency,
+      financial_outlay, start_date, end_date, investigators,
+      pi_institute, status, funds_received
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      params.id,
+      params.email,
+      params.role,
+      params.project_title,
+      params.funding_agency,
+      params.financial_outlay,
+      params.start_date,
+      params.end_date,
+      params.investigators,
+      params.pi_institute,
+      params.status,
+      params.funds_received
+    ]
+  );
 
-          case 'consultancy_projects':
-            const consultancyResult = await query(
-              `INSERT INTO consultancy_projects(id, email,role, project_title, funding_agency, financial_outlay, start_date, period_months, investigators, status) VALUES (?, ?, ?,?, ?, ?, ?, ?, ?, ?)`,
-              [
-                params.id,
-                params.email,
-                params.role,
-                params.project_title,
-                params.funding_agency,
-                params.financial_outlay,
-                params.start_date,
-                params.period_months,
-                params.investigators,
-                params.status
-              ]
-            )
-            if (params.collaboraters && Array.isArray(params.collaboraters)) {
-              for (const email of params.collaboraters) {
-                await query(
-                  `INSERT INTO consultancy_projects_collaborater(consultancy_projects_id, email) VALUES (?, ?)`,
-                  [params.id, email]
-                )
-              }
-            }
-            await invalidateProfileIfNeeded(type, params);
-            return NextResponse.json(consultancyResult)
+  // 2. Insert collaborators
+  if (params.collaboraters && Array.isArray(params.collaboraters)) {
+    for (const email of params.collaboraters) {
+      await query(
+        `INSERT INTO sponsored_projects_collaborater (
+          sponsored_project_id, email
+        ) VALUES (?, ?)`,
+        [params.id, email]
+      );
+    }
+  }
+
+  // 3. Fetch project with collaborators
+  const sponsoredWithCollaborators = await query(
+    `SELECT sp.*, GROUP_CONCAT(spc.email) AS collaboraters
+     FROM sponsored_projects sp
+     LEFT JOIN sponsored_projects_collaborater spc
+       ON sp.id = spc.sponsored_project_id
+     WHERE sp.id = ?
+     GROUP BY sp.id`,
+    [params.id]
+  );
+
+  // 4. Invalidate profile cache
+  await invalidateProfileIfNeeded(type, params);
+
+  // 5. Invalidate primary user's cache
+  await invalidatePublicationsCache(params.email);
+
+  // 6. Invalidate collaborators' caches (both publication and profile)
+  if (params.collaboraters && Array.isArray(params.collaboraters)) {
+    for (const email of params.collaboraters) {
+      await invalidatePublicationsCache(email);
+      await invalidateUserProfile(email);
+    }
+  }
+
+  // 7. Return consistent response
+  const projectObj = sponsoredWithCollaborators[0] || null;
+  if (projectObj) {
+    projectObj.collaboraters = projectObj.collaboraters
+      ? projectObj.collaboraters.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+  }
+
+  return NextResponse.json({
+    sponsoredProject: projectObj
+  });
+}
+
+case 'consultancy_projects': {
+  // 1. Insert the main consultancy project record
+  const consultancyResult = await query(
+    `INSERT INTO consultancy_projects (
+      id, email, role, project_title, funding_agency, 
+      financial_outlay, start_date, period_months, investigators, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      params.id,
+      params.email,
+      params.role,
+      params.project_title,
+      params.funding_agency,
+      params.financial_outlay,
+      params.start_date,
+      params.period_months,
+      params.investigators,
+      params.status
+    ]
+  );
+
+  // 2. Insert collaborators if provided
+  if (params.collaboraters && Array.isArray(params.collaboraters)) {
+    for (const email of params.collaboraters) {
+      await query(
+        `INSERT INTO consultancy_projects_collaborater (consultancy_projects_id, email) 
+         VALUES (?, ?)`,
+        [params.id, email]
+      );
+    }
+  }
+
+  // 3. Fetch the record along with aggregated collaborators for the frontend
+  const consultancyWithCollaborators = await query(
+    `SELECT cp.*, GROUP_CONCAT(cpc.email) AS collaboraters 
+     FROM consultancy_projects cp 
+     LEFT JOIN consultancy_projects_collaborater cpc ON cp.id = cpc.consultancy_projects_id 
+     WHERE cp.id = ? 
+     GROUP BY cp.id`,
+    [params.id]
+  );
+
+  // 4. Handle global profile cache invalidation
+  await invalidateProfileIfNeeded(type, params);
+
+  // 5. Invalidate publications/projects cache for the primary author
+  await invalidatePublicationsCache(params.email);
+
+  // 6. Invalidate cache for all co-consultants/collaborators (publication and profile)
+  if (params.collaboraters && Array.isArray(params.collaboraters)) {
+    for (const email of params.collaboraters) {
+      await invalidatePublicationsCache(email);
+      await invalidateUserProfile(email);
+    }
+  }
+
+  // 7. Return the data object directly to match the structure
+  const projectObj = consultancyWithCollaborators[0] || null;
+  if (projectObj) {
+    projectObj.collaboraters = projectObj.collaboraters
+      ? projectObj.collaboraters.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+  }
+
+  return NextResponse.json({ 
+    consultancy: projectObj 
+  });
+}
+
 
           case 'teaching_engagement':
             const teachingResult = await query(

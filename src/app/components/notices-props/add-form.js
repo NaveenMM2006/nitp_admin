@@ -45,14 +45,18 @@ export const AddForm = ({ handleClose, modal }) => {
         // category is not used in API - left as is for now
         type: session?.user?.role === 'ACADEMIC_ADMIN' ? 'academics' : 
               session?.user?.role === 'DEPT_ADMIN' ? 'department' :
-              session?.user?.role === 'TENDER_NOTICE_ADMIN' ? 'tender' : 'general',
+              session?.user?.role === 'TENDER_NOTICE_ADMIN' ? 'tender' :
+              session?.user?.role === 'EXAM_ADMIN' ? 'exam' : 'general',
         category: session?.user?.role === 'ACADEMIC_ADMIN' ? 'academics' : 
                  session?.user?.role === 'DEPT_ADMIN' ? 'department' :
-                 session?.user?.role === 'TENDER_NOTICE_ADMIN' ? 'tender' : 'general',
+                 session?.user?.role === 'TENDER_NOTICE_ADMIN' ? 'tender' :
+                 session?.user?.role === 'EXAM_ADMIN' ? 'exam' : 'general',
         important: false,
+        is_new: false,
         department: session?.user?.role === 'DEPT_ADMIN' ? session.user.department : null,
         isDept: session?.user?.role === 'DEPT_ADMIN' ? 1 : 0,
-        notice_sub_type: ''
+        notice_sub_type: '',
+        additional_title: ''
     })
 
     const [new_attach, setNew_attach] = useState([])
@@ -161,9 +165,11 @@ export const AddForm = ({ handleClose, modal }) => {
                 author: session.user.name,
                 attachments,
                 important: content.important,
+                is_new: content.is_new,
                 department: content.department || null,
                 isDept: content.type === 'department' ? 1 : 0,
-                notice_sub_type: content.notice_sub_type ? content.notice_sub_type: undefined
+                notice_sub_type: content.notice_sub_type ? content.notice_sub_type: undefined,
+                additional_title: content.additional_title?.trim() || null
             }
 
             // Remove notice_sub_type if not needed
@@ -202,9 +208,14 @@ export const AddForm = ({ handleClose, modal }) => {
                 <MenuItem key="academics" value="academics">Academics</MenuItem>
             ];
         }
-        if (session?.user?.role === 'DEPT_ADMIN') {
+        if (session?.user?.role === 'TENDER_NOTICE_ADMIN') {
             return [
-                <MenuItem key="department" value="department">Department</MenuItem>
+                <MenuItem key="tender" value="tender">Tender</MenuItem>
+            ];
+        }
+        if (session?.user?.role === 'EXAM_ADMIN') {
+            return [
+                <MenuItem key="exam" value="exam">Examination Section</MenuItem>
             ];
         }
         return [
@@ -260,6 +271,18 @@ export const AddForm = ({ handleClose, modal }) => {
                             variant="outlined"
                             placeholder="Enter notice title..."
                         />
+                        <TextField
+                            margin="dense"
+                            label="Additional Title (Optional)"
+                            name="additional_title"
+                            type="text"
+                            fullWidth
+                            value={content.additional_title}
+                            onChange={handleChange}
+                            sx={{ mb: 2 }}
+                            variant="outlined"
+                            placeholder="Enter additional title (optional)..."
+                        />
                         
                         <Grid container spacing={2} sx={{ mb: 2 }}>
                             <Grid item xs={12} sm={6}>
@@ -297,7 +320,7 @@ export const AddForm = ({ handleClose, modal }) => {
                             </Grid>
                         </Grid>
 
-                        <Box sx={{ mb: 2 }}>
+                        <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
                             <FormControlLabel
                                 control={
                                     <Checkbox
@@ -318,6 +341,26 @@ export const AddForm = ({ handleClose, modal }) => {
                                     </Typography>
                                 }
                             />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        name="is_new"
+                                        checked={Boolean(content.is_new)}
+                                        onChange={handleChange}
+                                        sx={{ 
+                                            color: '#00796b',
+                                            '&.Mui-checked': {
+                                                color: '#00796b',
+                                            },
+                                        }}
+                                    />
+                                }
+                                label={
+                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                        Mark as New
+                                    </Typography>
+                                }
+                            />
                         </Box>
 
                         <Grid container spacing={2}>
@@ -330,7 +373,7 @@ export const AddForm = ({ handleClose, modal }) => {
                                         onChange={handleChange}
                                         defaultValue={session?.user?.role === 'ACADEMIC_ADMIN' ? 'academics' : 'general'}
                                         label="Notice Type"
-                                        disabled={session?.user?.role === 'DEPT_ADMIN'}
+                                        disabled={session?.user?.role === 'DEPT_ADMIN' || session?.user?.role === 'ACADEMIC_ADMIN' || session?.user?.role === 'TENDER_NOTICE_ADMIN' || session?.user?.role === 'EXAM_ADMIN'}
                                     >
                                         {getNoticeTypeOptions()}
                                     </Select>
@@ -365,9 +408,10 @@ export const AddForm = ({ handleClose, modal }) => {
                                             label="Sub Notice Type"
                                             required
                                         >
-                                            {availableSubTypes.map(([displayName, upKey]) => (
-                                                <MenuItem key={upKey} value={upKey}>{upKey}</MenuItem>
-                                            ))}
+                                            {availableSubTypes.map(([id, label]) => {
+                                                const val = content.type?.toLowerCase() === 'admissions' ? id : label;
+                                                return <MenuItem key={id} value={val}>{label}</MenuItem>;
+                                            })}
                                         </Select>
                                     </FormControl>
                                 </Grid>

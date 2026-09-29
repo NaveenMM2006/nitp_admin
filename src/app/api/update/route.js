@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/authOptions'
-import { invalidateProfileIfNeeded } from '@/lib/profileCache'
+import { invalidateProfileIfNeeded, invalidateUserProfile } from '@/lib/profileCache'
 import { invalidatePublicationsCache } from '@/lib/publicationsCache';
 import { PUBLICATION_TYPES } from '../../../lib/const'
 
@@ -34,6 +34,45 @@ export async function PUT(request) {
         );
       }
 
+      // Validate mandatory fields for faculty profile updates (only when updating basic profile info fields)
+      const isUpdatingProfileInfo =
+        params.date_of_birth !== undefined ||
+        params.date_of_joining !== undefined ||
+        params.category !== undefined ||
+        params.gender !== undefined;
+
+      if (session.user.role !== "SUPER_ADMIN" && isUpdatingProfileInfo) {
+        if (!params.date_of_birth || !params.date_of_joining || !params.category || !params.gender) {
+          return NextResponse.json(
+            { message: "Date of Birth, Date of Joining, Category, and Gender are mandatory." },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Check if user is an officer (role 4) or super admin
+      let isOfficer =
+        session.user.role === "SUPER_ADMIN" ||
+        session.user.role === "OFFICER" ||
+        session.user.numericRole === 4;
+
+      if (!isOfficer) {
+        const userRow = await query(
+          `SELECT role, department FROM user WHERE email = ?`,
+          [params.email]
+        );
+        if (userRow.length > 0) {
+          const roleNum = Number(userRow[0].role);
+          if (
+            roleNum === 4 ||
+            userRow[0].department === "Officers" ||
+            userRow[0].department === "officers"
+          ) {
+            isOfficer = true;
+          }
+        }
+      }
+
       let queryParts = [];
       let updateValues = [];
 
@@ -48,6 +87,8 @@ export async function PUT(request) {
         "ext_no",
         "category",
         "gender",
+        "date_of_birth",
+        "date_of_joining",
         "linkedin",
         "google_scholar",
         "personal_webpage",
@@ -55,22 +96,38 @@ export async function PUT(request) {
         "vidwan",
         "orcid",
       ];
-  fields.forEach((field) => {
-    if (params[field] !== undefined) {
-      let value = params[field];
 
-      if (typeof value === "string" && value.trim() === "") {
-        value = null;
+      if (isOfficer) {
+        fields.push("department");
       }
 
-      if (value === undefined) {
-        value = null;
+      fields.forEach((field) => {
+        if (params[field] !== undefined) {
+          let value = params[field];
+
+          if (typeof value === "string" && value.trim() === "") {
+            value = null;
+          }
+
+          if (value === undefined) {
+            value = null;
+          }
+
+          if (value && (field === "date_of_birth" || field === "date_of_joining")) {
+            value = new Date(value).toISOString().slice(0, 10);
+          }
+
+          queryParts.push(`${field} = ?`);
+          updateValues.push(value);
+        }
+      });
+      if (queryParts.length === 0) {
+        return NextResponse.json(
+          { message: "No profile fields specified for update." },
+          { status: 400 }
+        );
       }
 
-      queryParts.push(`${field} = ?`);
-      updateValues.push(value);
-    }
-  });
       // Add email as the last parameter
       updateValues.push(params.email);
 
@@ -79,6 +136,7 @@ export async function PUT(request) {
         updateValues,
       );
 
+      await invalidateProfileIfNeeded(type, params);
       return NextResponse.json(result);
     }
     // Notice updates - Super Admin, Academic Admin, and Department Admin access
@@ -106,7 +164,8 @@ export async function PUT(request) {
         (session.user.role === 'DEPT_ADMIN' && 
          noticeData.notice_type === 'department' && 
          noticeData.department === session.user.department) ||
-        (session.user.role === 'TENDER_NOTICE_ADMIN' && noticeData.notice_type === 'tender')
+        (session.user.role === 'TENDER_NOTICE_ADMIN' && noticeData.notice_type === 'tender') ||
+        (session.user.role === 'EXAM_ADMIN' && noticeData.notice_type === 'exam' && (!params.data.notice_type || params.data.notice_type === 'exam'))
       
       console.log('Can update notice:', canUpdateNotice)
       
@@ -129,12 +188,15 @@ export async function PUT(request) {
       if (params.data.notice_type) {
         const noticeTypeKey = params.data.notice_type.toUpperCase();
         if (notice_sub_types.hasOwnProperty(noticeTypeKey)) {
-          if (
-            !params.data.notice_sub_type ||
-            !notice_sub_types[noticeTypeKey].some(
-            ([_,upKey]) => upKey===params.data.notice_sub_type,
-            )
-          ) {
+          const matchedSubType = params.data.notice_sub_type
+            ? notice_sub_types[noticeTypeKey].find(
+                ([id, label]) =>
+                  id.toLowerCase() === params.data.notice_sub_type.trim().toLowerCase() ||
+                  label.toLowerCase() === params.data.notice_sub_type.trim().toLowerCase()
+              )
+            : null;
+
+          if (!params.data.notice_sub_type || !matchedSubType) {
             return NextResponse.json(
               {
                 message:
@@ -143,6 +205,12 @@ export async function PUT(request) {
               },
               { status: 400 },
             );
+          }
+
+          if (params.data.notice_type.toLowerCase() === "admissions") {
+            params.data.notice_sub_type = matchedSubType[0];
+          } else {
+            params.data.notice_sub_type = matchedSubType[1];
           }
         }
       }
@@ -162,13 +230,15 @@ export async function PUT(request) {
             openDate = ?,
             closeDate = ?,
             important = ?,
+            is_new = ?,
             attachments = ?,
             notice_link = ?,
             isVisible = ?,
             updatedBy = ?,
             notice_type = ?,
             notice_sub_type = ?,
-            department = ?
+            department = ?,
+            additional_title = ?
         WHERE id = ?`,
         [
             params.data.title,
@@ -183,6 +253,7 @@ export async function PUT(request) {
             params.data.notice_type || null,
             params.data.notice_sub_type||null,
             params.data.department || null,
+            params.data.additional_title?.trim()||null,
             params.data.id
         ]
       )
@@ -365,39 +436,51 @@ export async function PUT(request) {
                 academic_responsibility,
                 is_retired,
                 retirement_date,
+                date_of_birth,
+                date_of_joining,
               } = params;
 
-            // Format retirement_date for MySQL or set to NULL
+            // Format dates for MySQL or set to NULL
             const formattedRetirementDate = retirement_date
               ? new Date(retirement_date).toISOString().slice(0, 10)
+              : null;
+            const formattedDOB = date_of_birth
+              ? new Date(date_of_birth).toISOString().slice(0, 10)
+              : null;
+            const formattedDOJ = date_of_joining
+              ? new Date(date_of_joining).toISOString().slice(0, 10)
               : null;
 
             await query(
               `UPDATE user SET 
                 name = ?,
                 department = ?,
-                  designation = ?,
-                  role = ?,
-                  category = ?,
-                    gender = ?,
+                designation = ?,
+                role = ?,
+                category = ?,
+                gender = ?,
                 ext_no = ?,
                 research_interest = ?,
                 academic_responsibility = ?,
                 is_retired = ?,
-                retirement_date = ?
+                retirement_date = ?,
+                date_of_birth = ?,
+                date_of_joining = ?
               WHERE email = ?`,
               [
                 name,
                 department,
                 designation,
-                  role,
-                  category || null,
-                  gender || null,
-                  ext_no,
+                role,
+                category || null,
+                gender || null,
+                ext_no,
                 research_interest,
                 academic_responsibility || null,
                 is_retired,
                 formattedRetirementDate,
+                formattedDOB,
+                formattedDOJ,
                 email
               ]
             )
@@ -414,37 +497,55 @@ export async function PUT(request) {
     if (session.user.email === params.email) {
       switch (type) {
         // Academic Records
-        case "phd_candidates":
-          const phdResult = await query(
-            `UPDATE phd_candidates SET 
-              student_name = ?,
-              roll_no = ?,
-              registration_year = ?,
-              registration_type = ?,
-              research_area = ?,
-              other_supervisors = ?,
-              current_status = ?,
-              completion_year = ?,
-              supervisor_type = ? ,
-              registration_date = ?
-            WHERE id = ? AND email = ?`,
-            [
-              params.student_name,
-              params.roll_no,
-              params.registration_year,
-              params.registration_type,
-              params.research_area,
-              params.other_supervisors,
-              params.current_status,
-              params.completion_year,
-              params.supervisor_type,
-              params.registration_date || null,
-              params.id,
-              params.email
-            ]
-          ); 
-          await invalidateProfileIfNeeded(type, params);
-          return NextResponse.json(phdResult)
+        case "phd_candidates": {
+            const toNull = (v) => (v === undefined || v === "" ? null : v);
+
+            // registration_date is optional — only format it if a valid value was provided
+            let formattedRegistrationDate = null;
+            if (params.registration_date) {
+              const d = new Date(params.registration_date);
+              if (!isNaN(d.getTime())) {
+                formattedRegistrationDate = d.toISOString().slice(0, 10); // YYYY-MM-DD
+              } else {
+                console.warn(
+                  `Invalid registration_date received for phd_candidates id ${params.id}:`,
+                  params.registration_date
+                );
+              }
+            }
+
+            const phdResult = await query(
+              `UPDATE phd_candidates SET 
+                student_name = ?,
+                roll_no = ?,
+                registration_year = ?,
+                registration_type = ?,
+                research_area = ?,
+                other_supervisors = ?,
+                current_status = ?,
+                completion_year = ?,
+                supervisor_type = ?,
+                registration_date = ?
+              WHERE id = ? AND email = ?`,
+              [
+                toNull(params.student_name),
+                toNull(params.roll_no),
+                toNull(params.registration_year),
+                toNull(params.registration_type),
+                toNull(params.research_area),
+                toNull(params.other_supervisors),
+                toNull(params.current_status),
+                toNull(params.completion_year),
+                toNull(params.supervisor_type),
+                formattedRegistrationDate,
+                params.id,
+                params.email,
+              ]
+            );
+
+            await invalidateProfileIfNeeded(type, params);
+            return NextResponse.json(phdResult);
+          }
 
         case "journal_papers": {
           try {
@@ -806,6 +907,8 @@ export async function PUT(request) {
                 `INSERT INTO sponsored_projects_collaborater(sponsored_project_id, email) VALUES (?, ?)`,
                 [params.id, email],
               );
+              await invalidatePublicationsCache(email);
+              await invalidateUserProfile(email);
             }
           }
           await invalidateProfileIfNeeded(type, params);
@@ -848,6 +951,8 @@ export async function PUT(request) {
                 `INSERT INTO consultancy_projects_collaborater(consultancy_projects_id, email) VALUES (?, ?)`,
                 [params.id, email],
               );
+              await invalidatePublicationsCache(email);
+              await invalidateUserProfile(email);
             }
           }
           await invalidateProfileIfNeeded(type, params);
@@ -894,6 +999,22 @@ export async function PUT(request) {
           }
           await invalidateProfileIfNeeded(type, params);
           return NextResponse.json(iprResult)
+
+        case "patents":
+          const userPatentResult = await query(
+            `UPDATE patents
+              SET title = ?, description = ?, patent_date = ?
+              WHERE id = ? AND email = ?`,
+            [
+              params.title,
+              params.description,
+              params.patent_date,
+              params.id,
+              params.email,
+            ],
+          );
+          await invalidateProfileIfNeeded(type, params);
+          return NextResponse.json(userPatentResult);
 
         case "startups":
           const startupResult = await query(

@@ -148,7 +148,7 @@ export const ConfirmDelete = ({ open, handleClose, notice }) => {
                             fontStyle: 'italic'
                         }}
                     >
-                        "{notice?.title}"
+                        "{notice?.title}{notice?.additional_title ? ` (${notice?.additional_title})` : ''}"
                     </Typography>
                 </Box>
 

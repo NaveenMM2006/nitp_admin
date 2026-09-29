@@ -4,6 +4,7 @@ export const administrationList = new Map([
   ['genralintranet', 'Intranet - General Notice'],
   ['tender', 'Tender'],
   ['job', 'JOB'],
+  ['exam', 'Examination Section'],
   ['bogminutes', 'BOG/FC/BWC Minutes'],
   ['senateminutes', 'Senate Minutes'],
   ['annualreport', 'Annual Reports'],
@@ -14,9 +15,9 @@ export const administrationList = new Map([
 export const notice_sub_types = {
   "JOB": [
     ["regularteaching", "Regular Teaching"],
-    ["nonregularteaching", "Non-Regular Teaching"],
+    ["contractual/temporaryfaculty", "Contractual / Temporary Faculty"],
     ["regularnonteaching", "Regular Non-Teaching"],
-    ["nonregularnonteaching", "Non-Regular Non-Teaching"],
+    ["contractual/temporarynonteaching", "Contractual / Temporary Non-Teaching"],
     ["jdrfsrf", "JDRF/SRF"]
   ],
   "ADMISSIONS": [
@@ -28,6 +29,35 @@ export const notice_sub_types = {
     ["qip", "QIP"]
   ]
 }
+
+export const StaffDesignations = [
+  "Technical Assistant",
+  "Technical Assistant (SG-I)",
+  "Technical Assistant (SG-II)",
+  "Sr Technical Assistant",
+  "Technician",
+  "Technician (SG-I)",
+  "Technician (SG-II)",
+  "Sr Technician",
+  "Assistant Technician",
+  "Jr Engineer",
+  "Assistant Engineer",
+  "Assistant Engineer (SG-I)",
+  "Assistant Engineer (SG-II)",
+  "Office Attendant",
+  "Office Attendant (SG-I)",
+  "Office Attendant (SG-II)",
+  "Sr Office Attendant",
+  "Jr Office Attendant",
+  "Superintendent",
+  "Superintendent (SG-I)",
+  "Superintendent (SG-II)",
+  "Sr Superintendent",
+  "Assistant (SG-I)",
+  "Senior Assistant",
+  "Junior Assistant",
+];
+
 
 export const depList = new Map([
   ['arch', 'Architecture'],
@@ -64,6 +94,14 @@ export const officerDesignations = [
   'SAS Officer',
   'Maintenance Engineer (Elec)',
   'Maintenance Engineer (Civil)'
+]
+
+export const FacultyDesignations = [
+  'Professor',
+  'Associate Professor',
+  'HOD & Professor',
+  'HOD & Associate Professor',
+  'Assistant Professor',
 ]
 
 
