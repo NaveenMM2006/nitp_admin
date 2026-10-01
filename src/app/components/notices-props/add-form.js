@@ -17,7 +17,7 @@ import {
     Grid
 } from '@mui/material'
 import { useSession } from 'next-auth/react'
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { AddAttachments } from './../common-props/add-attachment'
 import { handleNewAttachments } from './../common-props/add-attachment'
 import { administrationList, depList, notice_sub_types } from './../../../lib/const'
@@ -60,6 +60,32 @@ export const AddForm = ({ handleClose, modal }) => {
     })
 
     const [new_attach, setNew_attach] = useState([])
+    
+    // File Management State
+    const [directories, setDirectories] = useState([]);
+    const [mappings, setMappings] = useState([]);
+
+    useEffect(() => {
+        // Fetch active directories and mappings
+        const fetchFileManagementData = async () => {
+            try {
+                const [dirRes, mapRes] = await Promise.all([
+                    fetch('/api/file-management/directories'),
+                    fetch('/api/file-management/mappings')
+                ]);
+                if (dirRes.ok && mapRes.ok) {
+                    const dirs = await dirRes.json();
+                    const maps = await mapRes.json();
+                    const activeDirs = dirs.filter(d => d.is_active);
+                    setDirectories(activeDirs);
+                    setMappings(maps);
+                }
+            } catch (err) {
+                console.error("Failed to load file management config:", err);
+            }
+        };
+        fetchFileManagementData();
+    }, []);
 
     // Get the available sub-types for the currently selected notice type
     const availableSubTypes = useMemo(() => {
@@ -82,20 +108,48 @@ export const AddForm = ({ handleClose, modal }) => {
         }
     }
 
+    // Filter available directories based on type and sub_type
+    const availableDirectories = useMemo(() => {
+        if (!directories.length) return [];
+        
+        return directories.filter(dir => {
+            if (dir.slug === 'default') return true; // Default is always available
+            
+            // Check mappings
+            const dirMappings = mappings.filter(m => m.directory_id === dir.id);
+            if (dirMappings.length === 0) return false;
+            
+            return dirMappings.some(m => {
+                const typeMatches = m.notice_type === content.type;
+                if (!typeMatches) return false;
+                
+                // If mapping has no sub_type, it's valid for all sub_types of this type
+                if (!m.notice_sub_type) return true;
+                
+                // Otherwise exact match required
+                return m.notice_sub_type === content.notice_sub_type;
+            });
+        });
+    }, [directories, mappings, content.type, content.notice_sub_type]);
+
+
+
     const handleSubmit = async (e) => {
         e.preventDefault()
         setSubmitting(true)
         try {
             let attachments = []
-            const validNewAttach = new_attach.filter(item => Boolean(item.url || item.value))
-            if (validNewAttach.length) {
-                const processedAttachments = await handleNewAttachments(validNewAttach)
-                attachments = processedAttachments
-                    .filter(attachment => Boolean(attachment.url))
-                    .map(attachment => ({
-                        caption: attachment.caption || '',
-                        url: attachment.url
-                    }))
+            let fileMetadata = []
+            if (new_attach.length) {
+                const processedAttachments = await handleNewAttachments(new_attach, null)
+                attachments = processedAttachments.map(attachment => ({
+                    caption: attachment.caption,
+                    url: attachment.url
+                }))
+                // Extract rich metadata if available
+                fileMetadata = processedAttachments
+                    .filter(att => att.fileMetadata)
+                    .map(att => att.fileMetadata)
             }
 
             const finaldata = {
@@ -130,6 +184,7 @@ export const AddForm = ({ handleClose, modal }) => {
                 },
                 body: JSON.stringify({
                     data: finaldata,
+                    fileMetadata: fileMetadata.length > 0 ? fileMetadata : undefined,
                     type: "notice"
                 }),
             })
@@ -370,6 +425,7 @@ export const AddForm = ({ handleClose, modal }) => {
                         <Typography variant="h6" sx={{ mb: 2, color: '#333', fontWeight: 500 }}>
                             Attachments
                         </Typography>
+                        
                         <Box sx={{ 
                             p: 2, 
                             border: '2px dashed #ddd', 
@@ -379,6 +435,8 @@ export const AddForm = ({ handleClose, modal }) => {
                             <AddAttachments
                                 attachments={new_attach}
                                 setAttachments={setNew_attach}
+                                showDirectorySelector={true}
+                                directories={availableDirectories}
                             />
                         </Box>
                     </Box>

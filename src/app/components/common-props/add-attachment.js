@@ -2,9 +2,11 @@ import React, { useMemo } from 'react'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import { Delete } from '@mui/icons-material'
-import { FormControlLabel, Checkbox } from '@mui/material'
+import { FormControlLabel, Checkbox, MenuItem } from '@mui/material'
 import { useEffect } from 'react'
-export const AddAttachments = ({ attachments, setAttachments, limit }) => {
+
+export const AddAttachments = ({ attachments, setAttachments, limit, showDirectorySelector = false, directories = [] }) => {
+    const defaultDirId = showDirectorySelector ? (directories.find(d => d.slug === 'default')?.id || '') : '';
 
     useEffect(() => {
         if (attachments.length === 0) {
@@ -15,10 +17,11 @@ export const AddAttachments = ({ attachments, setAttachments, limit }) => {
                     url: undefined,
                     value: undefined,
                     typeLink: false,
+                    directoryId: defaultDirId
                 },
             ]);
         }
-    }, []);
+    }, [defaultDirId]);
 
     function handleChange(i, event) {
         const values = [...attachments]
@@ -40,7 +43,14 @@ export const AddAttachments = ({ attachments, setAttachments, limit }) => {
             url: undefined,
             value: undefined,
             typeLink: false,
+            directoryId: defaultDirId
         })
+        setAttachments(values)
+    }
+
+    function handleChangeDirectory(i, event) {
+        const values = [...attachments]
+        values[i].directoryId = event.target.value
         setAttachments(values)
     }
 
@@ -90,7 +100,7 @@ export const AddAttachments = ({ attachments, setAttachments, limit }) => {
                     onChange={(e) => handleChange(idx, e)}
                     style={{ margin: `8px`, display: 'inline' }}
                 />
-                <div style={{ display: 'flex' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
                     {attachment.typeLink ? (
                         <TextField
                             placeholder="File Link"
@@ -100,15 +110,32 @@ export const AddAttachments = ({ attachments, setAttachments, limit }) => {
                             style={{ margin: `8px`, width: `90%` }}
                         />
                     ) : (
-                        <TextField
-                            type="file"
-                            name="url"
-                            files={attachment.url}
-                            style={{ margin: `8px` }}
-                            onChange={(e) => {
-                                handleChangeFile(idx, e)
-                            }}
-                        />
+                        <>
+                            {showDirectorySelector && (
+                                <TextField
+                                    select
+                                    label="Storage Directory"
+                                    value={attachment.directoryId || defaultDirId || ''}
+                                    onChange={(e) => handleChangeDirectory(idx, e)}
+                                    style={{ margin: `8px`, minWidth: `200px` }}
+                                >
+                                    {directories.map(d => (
+                                        <MenuItem key={d.id} value={d.id}>
+                                            {d.name} {d.slug === 'default' ? '(Default)' : ''}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            )}
+                            <TextField
+                                type="file"
+                                name="url"
+                                files={attachment.url}
+                                style={{ margin: `8px` }}
+                                onChange={(e) => {
+                                    handleChangeFile(idx, e)
+                                }}
+                            />
+                        </>
                     )}
 
                     <Button
@@ -144,7 +171,7 @@ export const AddAttachments = ({ attachments, setAttachments, limit }) => {
     )
 }
 
-export const handleNewAttachments = async (new_attach, onProgress = null) => {
+export const handleNewAttachments = async (new_attach, directoryId = null, onProgress = null) => {
     for (let i = 0; i < new_attach.length; i++) {
         delete new_attach[i].value;
 
@@ -153,13 +180,30 @@ export const handleNewAttachments = async (new_attach, onProgress = null) => {
             let file = new FormData();
             file.append('file', new_attach[i].url);
             file.append('fileType', 'general');
+            
+            // Prefer per-attachment directoryId, fallback to global directoryId
+            const finalDirectoryId = new_attach[i].directoryId || directoryId;
+            if (finalDirectoryId) {
+                file.append('directoryId', finalDirectoryId);
+            }
 
             try {
                 // Use XMLHttpRequest for progress tracking if callback provided
                 if (onProgress && typeof onProgress === 'function') {
                     const result = await uploadWithProgress(file, (percent) => onProgress(i, percent));
                     new_attach[i].url = result.url;
-                    new_attach[i].key = result.key;
+                    new_attach[i].key = result.s3Key;
+                    // Store rich metadata for notice_attachments table
+                    new_attach[i].fileMetadata = {
+                        s3Key: result.s3Key,
+                        s3Url: result.url,
+                        originalFilename: result.originalFilename,
+                        storedFilename: result.storedFilename,
+                        mimeType: result.mimeType,
+                        fileSize: result.fileSize,
+                        directoryId: result.directoryId,
+                        caption: new_attach[i].caption
+                    };
                 } else {
                     let response = await fetch('/api/upload', {
                         method: 'POST',
@@ -173,12 +217,25 @@ export const handleNewAttachments = async (new_attach, onProgress = null) => {
                     let data = await response.json();
                     // Update the attachment with S3 URL and key
                     new_attach[i].url = data.url; // S3 URL for display
-                    new_attach[i].key = data.key; // S3 key for deletion
+                    new_attach[i].key = data.s3Key; // S3 key for deletion
+                    
+                    // Store rich metadata for notice_attachments table
+                    new_attach[i].fileMetadata = {
+                        s3Key: data.s3Key,
+                        s3Url: data.url,
+                        originalFilename: data.originalFilename,
+                        storedFilename: data.storedFilename,
+                        mimeType: data.mimeType,
+                        fileSize: data.fileSize,
+                        directoryId: data.directoryId,
+                        caption: new_attach[i].caption
+                    };
                 }
             } catch (error) {
                 console.error('File upload error:', error);
                 new_attach[i].url = ''; // Set it to empty if there was an error
                 new_attach[i].key = ''; // Empty key as well
+                new_attach[i].fileMetadata = null;
             }
         } else {
             console.log('NOT A FILE, It is a link');
