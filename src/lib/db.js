@@ -84,8 +84,8 @@ async function query(q, values = []) {
     // Get connection from pool (reuse existing connection if available)
     connection = await pool.getConnection();
     
-    // Execute query with prepared statement
-    const [results] = await connection.execute(q, values);
+    // Execute query (using query instead of execute avoids prepared statement binary protocol type issues)
+    const [results] = await connection.query(q, values);
     
     const endTime = Date.now();
     const executionTime = endTime - startTime;
@@ -134,7 +134,7 @@ async function batchQuery(queries) {
     
     const results = [];
     for (const { query: q, values = [] } of queries) {
-      const [result] = await connection.execute(q, values);
+      const [result] = await connection.query(q, values);
       results.push(result);
     }
     
@@ -171,7 +171,7 @@ async function transaction(queries) {
     
     const results = [];
     for (const { query: q, values = [] } of queries) {
-      const [result] = await connection.execute(q, values);
+      const [result] = await connection.query(q, values);
       results.push(result);
     }
     
