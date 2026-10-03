@@ -243,17 +243,18 @@ export async function PUT(request) {
         [
             params.data.title,
             new Date().getTime(),
-            params.data.openDate,
-            params.data.closeDate,
-            params.data.important || 0,
-            attachmentsJson,
+            params.data.openDate && !isNaN(Number(params.data.openDate)) ? Number(params.data.openDate) : null,
+            params.data.closeDate && !isNaN(Number(params.data.closeDate)) ? Number(params.data.closeDate) : null,
+            params.data.important ? 1 : 0,
+            params.data.is_new || params.data.new ? 1 : 0,
+            attachmentsJson || "[]",
             params.data.notice_link || null,
             params.data.isVisible === undefined ? 1 : Number(params.data.isVisible),
             session.user.email,
             params.data.notice_type || null,
-            params.data.notice_sub_type||null,
+            params.data.notice_sub_type || null,
             params.data.department || null,
-            params.data.additional_title?.trim()||null,
+            params.data.additional_title?.trim() || null,
             params.data.id
         ]
       )
