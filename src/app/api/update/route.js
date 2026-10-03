@@ -215,6 +215,14 @@ export async function PUT(request) {
         }
       }
 
+      const attachmentsJson = JSON.stringify(params.data.attachments);
+      if (attachmentsJson && attachmentsJson.length > 1000) {
+        return NextResponse.json(
+          { message: "Total size of notice attachments exceeds the maximum allowed limit of 1000 characters." },
+          { status: 400 }
+        );
+      }
+
       const result = await query(
         `UPDATE notices SET 
             title = ?,
@@ -239,7 +247,7 @@ export async function PUT(request) {
             params.data.closeDate && !isNaN(Number(params.data.closeDate)) ? Number(params.data.closeDate) : null,
             params.data.important ? 1 : 0,
             params.data.is_new || params.data.new ? 1 : 0,
-            JSON.stringify(params.data.attachments || []),
+            attachmentsJson || "[]",
             params.data.notice_link || null,
             params.data.isVisible === undefined ? 1 : Number(params.data.isVisible),
             session.user.email,
@@ -249,7 +257,34 @@ export async function PUT(request) {
             params.data.additional_title?.trim() || null,
             params.data.id
         ]
-      )   
+      )
+
+      // Handle new S3 attachments added during edit
+      if (params.fileMetadata && Array.isArray(params.fileMetadata)) {
+        for (const fileMeta of params.fileMetadata) {
+          if (fileMeta.s3Key) {
+            await query(
+              `INSERT INTO notice_attachments (
+                notice_id, directory_id, caption, original_filename, stored_filename, 
+                s3_key, s3_url, mime_type, file_size, uploaded_by
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                params.data.id, 
+                fileMeta.directoryId,
+                fileMeta.caption || null,
+                fileMeta.originalFilename || null,
+                fileMeta.storedFilename || null,
+                fileMeta.s3Key,
+                fileMeta.s3Url || fileMeta.url || null,
+                fileMeta.mimeType || null,
+                fileMeta.fileSize || null,
+                session.user.email
+              ]
+            );
+          }
+        }
+      }
+
       await invalidateProfileIfNeeded(type, params);   
       return NextResponse.json(result)
     }

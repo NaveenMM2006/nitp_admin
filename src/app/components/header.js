@@ -18,6 +18,7 @@ import GroupIcon from '@mui/icons-material/Group'
 import SettingsIcon from '@mui/icons-material/Settings'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import GroupsIcon from '@mui/icons-material/Groups'
+import FolderIcon from '@mui/icons-material/Folder'
 import { ROLES } from '@/lib/roles'
 import { useFacultyData } from '@/context/FacultyDataContext'
 
@@ -127,10 +128,11 @@ const menuItems = {
     { text: 'Notice', href: '/notice', icon: <NotificationsIcon /> },
     { text: 'News', href: '/news', icon: <NewspaperIcon /> },
     { text: 'Innovation', href: '/innovation', icon: <LightbulbIcon /> },
-    {text: 'Staff Management', href: '/staff-management', icon: <GroupIcon />},
+    { text: 'Staff Management', href: '/staff-management', icon: <GroupIcon />},
     { text: 'Faculty Management', href: '/faculty-management', icon: <GroupIcon /> },
     { text: 'Role Management', href: '/role-management', icon: <AdminPanelSettingsIcon /> },
-    { text: 'Club Management', href: '/club-management', icon: <GroupsIcon /> }
+    { text: 'Club Management', href: '/club-management', icon: <GroupsIcon /> },
+    { text: 'File Management', href: '/file-management', icon: <FolderIcon /> }
   ],
   [ROLES.CLUB_ADMIN]: [
     { text: 'Profile', href: '/', icon: <AccountCircleIcon /> },
