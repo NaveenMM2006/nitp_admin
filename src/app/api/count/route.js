@@ -73,6 +73,15 @@ export async function GET(request) {
                WHERE u1.department = ? OR u2.department = ?`,
               [deptName, deptName]
             );
+          } else if (table === 'journal_papers') {
+            tableCount = await query(
+              `SELECT COUNT(DISTINCT jp.id) AS count FROM journal_papers jp
+               LEFT JOIN journal_paper_collaborater jpc ON jp.id = jpc.journal_paper_id
+               LEFT JOIN user u1 ON u1.email = jp.email
+               LEFT JOIN user u2 ON u2.email = jpc.email
+               WHERE u1.department = ? OR u2.department = ?`,
+              [deptName, deptName]
+            );
           } else {
             tableCount = await query(
               `SELECT COUNT(*) AS count FROM ${table} AS t 
@@ -221,10 +230,18 @@ export async function GET(request) {
         'education',
         'work_experience'
       ]) {
-        const result = await query(
-          `SELECT COUNT(*) as count FROM ${table} WHERE email = ?`,
-          [email]
-        )
+        let result;
+        if (table === 'journal_papers') {
+          result = await query(
+            `SELECT COUNT(DISTINCT jp.id) as count FROM journal_papers jp WHERE jp.email = ? OR jp.id IN (SELECT journal_paper_id FROM journal_paper_collaborater WHERE email = ?)`,
+            [email, email]
+          );
+        } else {
+          result = await query(
+            `SELECT COUNT(*) as count FROM ${table} WHERE email = ?`,
+            [email]
+          );
+        }
         facultyCounts[table] = result[0].count
       }
 

@@ -70,13 +70,23 @@ export async function getCachedUserProfile(email) {
  * Invalidate profile cache (when profile is updated)
  */
 export async function invalidateUserProfile(email) {
-  if (isRedisDisabled()) return false;
+  if (isRedisDisabled() || !email) return false;
   try {
     const redis = await connectRedis('profileCache:invalidateUserProfile');
     if (!redis) return false;
     const key = getCacheKey(email);
     
     await redis.del(key);
+
+    try {
+      const v2Keys = await redis.keys(`v2:profile:*:${email}*`);
+      if (v2Keys && v2Keys.length > 0) {
+        await redis.del(...v2Keys);
+      }
+    } catch (e) {
+      // Ignore keys scanning error
+    }
+
     console.log(`✓ Profile cache invalidated for ${email}`);
     return true;
   } catch (error) {
@@ -123,8 +133,16 @@ export async function invalidateProfileIfNeeded(type, params) {
 
   // Check if this update type affects the profile
   if (profileTables.includes(type) && params.email) {
-    await invalidateUserProfile(params.email);
-    console.log(`✓ Profile cache invalidated for ${params.email} (${type})`);
+    const emailsToInvalidate = new Set([params.email]);
+    if (Array.isArray(params.collaboraters)) {
+      params.collaboraters.forEach((cEmail) => {
+        if (cEmail) emailsToInvalidate.add(cEmail);
+      });
+    }
+    await Promise.all(
+      Array.from(emailsToInvalidate).map((email) => invalidateUserProfile(email))
+    );
+    console.log(`✓ Profile cache invalidated for ${Array.from(emailsToInvalidate).join(', ')} (${type})`);
     return true;
   }
 

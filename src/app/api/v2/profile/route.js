@@ -179,7 +179,7 @@ export async function GET(request) {
     const [aboutMe, counts] = await Promise.all([
       query('SELECT * FROM about_me WHERE email = ?', [email]),
       query(`SELECT
-        (SELECT COUNT(*) FROM journal_papers                WHERE email = ?) AS journal_papers,
+        (SELECT COUNT(DISTINCT jp.id) FROM journal_papers jp WHERE jp.email = ? OR jp.id IN (SELECT journal_paper_id FROM journal_paper_collaborater WHERE email = ?)) AS journal_papers,
         (SELECT COUNT(*) FROM conference_papers             WHERE email = ?) AS conference_papers,
         (SELECT COUNT(*) FROM phd_candidates                WHERE email = ?) AS phd_candidates,
         (SELECT COUNT(DISTINCT sp.id) FROM sponsored_projects sp WHERE sp.email = ? OR sp.id IN (SELECT sponsored_project_id FROM sponsored_projects_collaborater WHERE email = ?)) AS sponsored_projects,
@@ -206,7 +206,7 @@ export async function GET(request) {
         (SELECT COUNT(*) FROM visits_abroad                 WHERE email = ?) AS visits_abroad,
         (SELECT COUNT(*) FROM special_lectures              WHERE email = ?) AS special_lectures,
         (SELECT COUNT(*) FROM honours_awards                WHERE email = ?) AS honours_awards
-      `, Array(29).fill(email)),
+      `, Array(30).fill(email)),
     ])
 
     const summary = { profile: profileResult[0], about_me: aboutMe, counts: counts[0] }

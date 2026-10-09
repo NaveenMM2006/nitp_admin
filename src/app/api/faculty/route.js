@@ -77,9 +77,12 @@ export async function GET(request) {
       'mooc_courses'
     ];
 
-    let subqueries = facultyTables.map(
-      (table) => `(SELECT COUNT(*) FROM ${table} WHERE email = u.email) AS ${table}_count`
-    );
+    let subqueries = facultyTables.map((table) => {
+      if (table === 'journal_papers') {
+        return `(SELECT COUNT(DISTINCT jp.id) FROM journal_papers jp WHERE jp.email = u.email OR jp.id IN (SELECT journal_paper_id FROM journal_paper_collaborater WHERE email = u.email)) AS journal_papers_count`;
+      }
+      return `(SELECT COUNT(*) FROM ${table} WHERE email = u.email) AS ${table}_count`;
+    });
 
     switch (type) {
       case 'all': {
