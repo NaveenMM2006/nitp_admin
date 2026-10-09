@@ -51,7 +51,7 @@ async function setCache(redis, key, data) {
 }
 
 const cardCountSubqueries = `
-  (SELECT COUNT(*) FROM journal_papers      WHERE email = u.email) AS journal_papers_count,
+  (SELECT COUNT(DISTINCT jp.id) FROM journal_papers jp WHERE jp.email = u.email OR jp.id IN (SELECT journal_paper_id FROM journal_paper_collaborater WHERE email = u.email)) AS journal_papers_count,
   (SELECT COUNT(*) FROM conference_papers   WHERE email = u.email) AS conference_papers_count,
   (SELECT COUNT(*) FROM ipr                 WHERE email = u.email) AS ipr_count,
   (SELECT COUNT(DISTINCT sp.id) FROM sponsored_projects sp WHERE sp.email = u.email OR sp.id IN (SELECT sponsored_project_id FROM sponsored_projects_collaborater WHERE email = u.email)) AS sponsored_projects_count,

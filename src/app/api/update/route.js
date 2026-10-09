@@ -615,6 +615,7 @@ export async function PUT(request) {
                     WHERE journal_paper_id = ? AND email = ?`,
                   [params.id, email],
                 );
+                await invalidateUserProfile(email);
               }
             }
 
